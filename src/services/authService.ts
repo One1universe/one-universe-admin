@@ -55,7 +55,7 @@ class AuthService {
    * Request password reset
    */
   async forgotPassword(data: { email: string }) {
-    return this.request.post("/auth/forgot-password", {
+    return this.request.post("/auth/invite/resend", {
       email: data.email,
     });
   }

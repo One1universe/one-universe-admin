@@ -7,9 +7,9 @@ import UserManagementStatusBadge from "../../UserManagementStatusBadge";
 
 const BuyerDetails = () => {
   const { modalType, selectedUser, closeModal } = userManagementStore();
-  const handleSelect = (value: string) => {
-    console.log("Selected:", value);
-  };
+  // const handleSelect = (value: string) => {
+  //   console.log("Selected:", value);
+  // };
   return (
     <AnimatePresence>
       {modalType === "openBuyer" && selectedUser && (
