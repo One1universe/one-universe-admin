@@ -3,11 +3,13 @@
 import { LogIn, ChevronDown, ChevronRight, Bell, Menu, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Separator } from "@/components/ui/separator";
 import { SideBarLinks } from "@/data/layoutSidebarData";
+import authService from "@/services/authService";
+import useToastStore from "@/store/useToastStore";
 
 export default function AdminDashboardLayout({
   children,
@@ -15,8 +17,23 @@ export default function AdminDashboardLayout({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
+  const router = useRouter();
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const { showToast } = useToastStore();
+  const handleLogOut = async () => {
+    // Add your logout logic here
+    const response = await authService.signout();
+    if (response.success) {
+      showToast(
+        "success",
+        "Logout Successful",
+        "You have been logged out",
+        3000
+      );
+      router.push("/auth/sign-in");
+    }
+  };
 
   const SidebarContent = ({ isMobile = false }) => (
     <section className="flex flex-col justify-between h-full">
@@ -183,7 +200,10 @@ export default function AdminDashboardLayout({
           />
           <span className="text-[.875rem]">Settings</span>
         </Link>
-        <button className="flex items-center gap-[13px] py-[8px] px-[16px] mt-[5px] text-[#D84040] cursor-pointer">
+        <button
+          onClick={handleLogOut}
+          className="flex items-center gap-[13px] py-[8px] px-[16px] mt-[5px] text-[#D84040] cursor-pointer"
+        >
           <LogIn size={16} />
           <span className="text-[.875rem]">Logout</span>
         </button>
@@ -306,9 +326,7 @@ export default function AdminDashboardLayout({
           </section>
         </header>
 
-        <section className="  px-2.5  md:px-5 mt-[25px]">
-          {children}
-        </section>
+        <section className="  px-2.5  md:px-5 mt-[25px]">{children}</section>
       </section>
     </main>
   );
