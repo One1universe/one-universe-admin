@@ -21,6 +21,8 @@ interface ModalState {
   selectedUser: UserType | null;
   openModal: (type: ModalType, user?: UserType) => void;
   closeModal: () => void;
+
+  
 }
 
 export const userManagementStore = create<ModalState>((set) => ({

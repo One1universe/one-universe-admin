@@ -8,9 +8,12 @@ import { userManagementStore } from "@/store/userManagementStore";
 import BuyerDetails from "./Tabs/BuyerTabs/BuyerDetails";
 import SellerDetails from "./Tabs/SellersTabs/SellerDetails";
 import AdminTable from "./Tabs/AdminTabs/AdminTable";
+import { useState } from "react";
+import BuyerFilters from "./Filters/BuyerFilters";
 
 const UsersManagement = () => {
   const { modalType } = userManagementStore();
+  const [showFilter, setShowFilter] = useState(false);
   return (
     <Tabs
       defaultValue="Buyers"
@@ -38,7 +41,7 @@ const UsersManagement = () => {
           </button>
         </TabsContent>
       </section>
-      <div className="my-[30px] md:px-[15px]">
+      <div className="my-[30px] md:px-[15px] relative">
         <section className="pb-3">
           <h3 className="text-[#171417] font-medium text-[1.25rem] leading-[140%] mb-[20px] px-[25px]">
             All Buyers
@@ -61,6 +64,7 @@ const UsersManagement = () => {
                 <button
                   className="border border-[#B7B6B7] flex items-center h-[48px] md:h-[46px]  px-[8px] rounded-[8px] gap-2 cursor-pointer"
                   type="button"
+                  onClick={() => setShowFilter(!showFilter)}
                 >
                   <ListFilter size={16} />
                   <span className="md:block hidden text-[#171417] text-[1rem] leading-[140%]">
@@ -71,6 +75,7 @@ const UsersManagement = () => {
             </aside>
           </section>
         </section>
+        <BuyerFilters />
         <TabsContent value="Buyers">
           <BuyersTable />
         </TabsContent>
