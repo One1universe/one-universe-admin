@@ -11,7 +11,7 @@ import Image from "next/image";
 
 const InviteAdminPage = () => {
   const [otp, setOtp] = useState<string[]>(["", "", "", "", ""]);
-  const [isLinkValid, setIsLinkValid] = useState<boolean>(false);
+  const [isLinkValid, setIsLinkValid] = useState<boolean>(true);
   const router = useRouter();
 
   const handleChange = (index: number, value: string) => {

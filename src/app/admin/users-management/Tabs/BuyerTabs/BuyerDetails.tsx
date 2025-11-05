@@ -214,6 +214,8 @@ const BuyerDetails = () => {
               </>
             </div>
           </motion.div>
+
+          
         </motion.div>
       )}
     </AnimatePresence>
