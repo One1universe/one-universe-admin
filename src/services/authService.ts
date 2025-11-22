@@ -1,79 +1,66 @@
-// services/authService.ts
-import { HttpService } from "./httpService";
-import { signIn, signOut } from "next-auth/react";
+import { signIn } from "next-auth/react";
 
-class AuthService {
-  private request = new HttpService();
-  /**
-   * Sign in with NextAuth
-   * @returns Promise with result or error
-   */
-  async signin(data: { email: string; password: string }) {
-    try {
-      const result = await signIn("credentials", {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        return { error: true, message: result.error };
-      }
-
-      return { success: true, message: "Login successful" };
-    } catch (error) {
-      return {
-        error: true,
-        message: error instanceof Error ? error.message : "Login failed",
-      };
-    }
-  }
-
-  /**
-   * Sign out
-   */
-  async signout() {
-    try {
-      await signOut({ redirect: false });
-      return { success: true };
-    } catch (error) {
-      return { error: true, message: "Sign out failed" };
-    }
-  }
-
-  /**
-   * Verify OTP
-   */
-  async verifyOtp(data: { email: string; otp: string }) {
-    return this.request.post("/auth/verify-otp", {
-      email: data.email,
-      otp: data.otp,
-    });
-  }
-
-  /**
-   * Request password reset
-   */
-  async forgotPassword(data: { email: string }) {
-    return this.request.post("/auth/admin-forgot-password", {
-      email: data.email,
-    });
-  }
-
-  async resetPassword(data: {
-    email: string;
-    otpCode: string;
-    newPassword: string;
-    confirmPassword: string;
-  }) {
-    return this.request.post("/auth/admin-change-password", {
-      email: data.email,
-      otpCode: data.otpCode,
-      newPassword: data.newPassword,
-      confirmPassword: data.confirmPassword,
-    });
-  }
+interface SignInCredentials {
+  email: string;
+  password: string;
 }
 
-const authService = new AuthService();
+interface SignInResponse {
+  success: boolean;
+  url?: string;
+  error?: boolean;
+  message?: string;
+}
+
+const authService = {
+  async signin(credentials: SignInCredentials): Promise<SignInResponse> {
+    try {
+      console.log("🔐 Attempting sign in with NextAuth...");
+
+      const result = await signIn("credentials", {
+        redirect: false, // Don't redirect automatically
+        email: credentials.email,
+        password: credentials.password,
+      });
+
+      console.log("📝 Sign in result:", result);
+      console.log("📝 Result status:", result?.status);
+      console.log("📝 Result ok:", result?.ok);
+      console.log("📝 Result error:", result?.error);
+      console.log("📝 Result url:", result?.url);
+
+      if (result?.error) {
+        console.error("❌ Sign in failed:", result.error);
+        return {
+          success: false,
+          error: true,
+          message: result.error || "Invalid credentials",
+        };
+      }
+
+      if (result?.ok) {
+        console.log("✅ Sign in successful");
+        return {
+          success: true,
+          url: result.url || "/admin", // Default to admin dashboard
+        };
+      }
+
+      // Fallback for unexpected results
+      return {
+        success: false,
+        error: true,
+        message: "An unexpected error occurred",
+      };
+    } catch (error: any) {
+      console.error("❌ Sign in error:", error);
+      return {
+        success: false,
+        error: true,
+        message: error.message || "Failed to sign in",
+      };
+    }
+  },
+};
+
 export default authService;

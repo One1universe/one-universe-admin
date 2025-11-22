@@ -1,172 +1,185 @@
-// services/httpService.ts
-import getBaseUrl, { BaseUrlProdType } from "@/services/baseUrl";
-import { getServerSession } from "next-auth/next";
-import { getSession } from "next-auth/react";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+// // services/httpService.ts
+// import getBaseUrl, { BaseUrlProdType } from "@/services/baseUrl";
+// import { getServerSession } from "next-auth/next";
+// import { getSession } from "next-auth/react";
+// import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
-interface HttpError {
-  error: true;
-  message: string;
-}
+// interface HttpError {
+//   error: true;
+//   message: string;
+// }
 
-export class HttpService {
-  private baseUrl: string;
-  private isRefreshing = false;
+// export class HttpService {
+//   private baseUrl: string;
+//   private isRefreshing = false;
 
-  constructor(env: BaseUrlProdType = "live") {
-    this.baseUrl = getBaseUrl(env);
-  }
+//   constructor(env: BaseUrlProdType = "live") {
+//     this.baseUrl = getBaseUrl(env);
+//   }
 
-  private async refreshAccessToken(
-    refreshToken: string
-  ): Promise<string | null> {
-    if (this.isRefreshing) return null;
+//   private async refreshAccessToken(
+//     refreshToken: string
+//   ): Promise<string | null> {
+//     if (this.isRefreshing) return null;
 
-    this.isRefreshing = true;
+//     this.isRefreshing = true;
 
-    try {
-      const response = await fetch(`${this.baseUrl}/auth/refresh-token`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ refreshToken }),
-      });
+//     try {
+//       const response = await fetch(`${this.baseUrl}/auth/refresh-token`, {
+//         method: "POST",
+//         headers: {
+//           "Content-Type": "application/json",
+//         },
+//         body: JSON.stringify({ refreshToken }),
+//       });
 
-      if (!response.ok) throw new Error("Refresh token failed");
+//       if (!response.ok) throw new Error("Refresh token failed");
 
-      const data = await response.json();
-      return data.tokens?.accessToken || data.accessToken;
-    } catch (error) {
-      console.error("Token refresh failed:", error);
-      return null;
-    } finally {
-      this.isRefreshing = false;
-    }
-  }
+//       const data = await response.json();
+//       return data.tokens?.accessToken || data.accessToken;
+//     } catch (error) {
+//       console.error("Token refresh failed:", error);
+//       return null;
+//     } finally {
+//       this.isRefreshing = false;
+//     }
+//   }
 
-  private async getAccessToken(
-    isServer: boolean = false
-  ): Promise<string | null> {
-    try {
-      if (isServer) {
-        const session = await getServerSession(authOptions);
-        return session?.accessToken || null;
-      } else {
-        const session = await getSession();
-        return session?.accessToken || null;
-      }
-    } catch {
-      return null;
-    }
-  }
+//   private async getAccessToken(
+//     isServer: boolean = false
+//   ): Promise<string | null> {
+//     try {
+//       if (isServer) {
+//         const session = await getServerSession(authOptions);
+//         return session?.accessToken || null;
+//       } else {
+//         const session = await getSession();
+//         return session?.accessToken || null;
+//       }
+//     } catch {
+//       return null;
+//     }
+//   }
 
-  private async getRefreshToken(
-    isServer: boolean = false
-  ): Promise<string | null> {
-    try {
-      if (isServer) {
-        const session = await getServerSession(authOptions);
-        return session?.refreshToken || null;
-      } else {
-        const session = await getSession();
-        return session?.refreshToken || null;
-      }
-    } catch {
-      return null;
-    }
-  }
+//   private async getRefreshToken(
+//     isServer: boolean = false
+//   ): Promise<string | null> {
+//     try {
+//       if (isServer) {
+//         const session = await getServerSession(authOptions);
+//         return session?.refreshToken || null;
+//       } else {
+//         const session = await getSession();
+//         return session?.refreshToken || null;
+//       }
+//     } catch {
+//       return null;
+//     }
+//   }
 
-  private async requestWithRetry<T>(
-    method: "GET" | "POST" | "PATCH" | "DELETE",
-    path: string,
-    data: unknown = null,
-    useAuth: boolean = false,
-    isServer: boolean = false
-  ): Promise<T | HttpError> {
-    let token: string | null = null;
+//   private async requestWithRetry<T>(
+//     method: "GET" | "POST" | "PATCH" | "DELETE",
+//     path: string,
+//     data: unknown = null,
+//     useAuth: boolean = false,
+//     isServer: boolean = false
+//   ): Promise<T | HttpError> {
+//     let token: string | null = null;
 
-    if (useAuth) {
-      token = await this.getAccessToken(isServer);
-    }
+//     if (useAuth) {
+//       token = await this.getAccessToken(isServer);
+//     }
 
-    const makeRequest = async (accessToken?: string) => {
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+//     const makeRequest = async (accessToken?: string) => {
+//       const headers: Record<string, string> = {
+//         "Content-Type": "application/json",
+//       };
+//       if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
 
-      return fetch(`${this.baseUrl}${path}`, {
-        method,
-        headers,
-        ...(method === "POST" || method === "PATCH"
-          ? { body: JSON.stringify(data) }
-          : {}),
-      });
-    };
+//       return fetch(`${this.baseUrl}${path}`, {
+//         method,
+//         headers,
+//         ...(method === "POST" || method === "PATCH"
+//           ? { body: JSON.stringify(data) }
+//           : {}),
+//       });
+//     };
 
-    let response = await makeRequest(token || undefined);
+//     let response = await makeRequest(token || undefined);
 
-    // Handle 401 - try to refresh token
-    if (response.status === 401 && useAuth) {
-      const refreshToken = await this.getRefreshToken(isServer);
-      if (refreshToken) {
-        const newAccessToken = await this.refreshAccessToken(refreshToken);
-        if (newAccessToken) {
-          // next-auth doesn't export an `update` helper to mutate the session here;
-          // just retry the request with the refreshed access token.
-          // If you need to persist the new token client-side, store it via your own logic (cookie/localStorage/secure storage).
-          response = await makeRequest(newAccessToken);
-        } else {
-          return { error: true, message: "Unauthorized and refresh failed" };
-        }
-      } else {
-        return { error: true, message: "No refresh token available" };
-      }
-    }
+//     // Handle 401 - try to refresh token
+//     if (response.status === 401 && useAuth) {
+//       const refreshToken = await this.getRefreshToken(isServer);
+//       if (refreshToken) {
+//         const newAccessToken = await this.refreshAccessToken(refreshToken);
+//         // if (newAccessToken) {
+//         //   // next-auth doesn't export an `update` helper to mutate the session here;
+//         //   // just retry the request with the refreshed access token.
+//         //   // If you need to persist the new token client-side, store it via your own logic (cookie/localStorage/secure storage).
+//         //   response = await makeRequest(newAccessToken);
+//         // } else {
+//           if (newAccessToken) {
+//     // Update NextAuth session on client
+//     if (!isServer) {
+//         const nextAuth = await import("next-auth/react");
+//         await nextAuth.update({
+//             accessToken: newAccessToken,
+//             refreshToken: refreshToken,
+//         });
+//     }
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      return { error: true, message: error.message || "Request failed" };
-    }
+//     response = await makeRequest(newAccessToken);
+// }
+// else{
+//           return { error: true, message: "Unauthorized and refresh failed" };
+//         }
+//       } else {
+//         return { error: true, message: "No refresh token available" };
+//       }
+//     }
 
-    return response.json() as Promise<T>;
-  }
+//     if (!response.ok) {
+//       const error = await response.json().catch(() => ({}));
+//       return { error: true, message: error.message || "Request failed" };
+//     }
 
-  async post<T>(
-    path: string,
-    data: unknown,
-    useAuth: boolean = false,
-    isServer: boolean = false
-  ): Promise<T | HttpError> {
-    return this.requestWithRetry<T>("POST", path, data, useAuth, isServer);
-  }
+//     return response.json() as Promise<T>;
+//   }
 
-  async get<T>(
-    path: string,
-    useAuth: boolean = false,
-    isServer: boolean = false
-  ): Promise<T | HttpError> {
-    return this.requestWithRetry<T>("GET", path, undefined, useAuth, isServer);
-  }
+//   async post<T>(
+//     path: string,
+//     data: unknown,
+//     useAuth: boolean = false,
+//     isServer: boolean = false
+//   ): Promise<T | HttpError> {
+//     return this.requestWithRetry<T>("POST", path, data, useAuth, isServer);
+//   }
 
-  async patch<T>(
-    path: string,
-    data: unknown,
-    useAuth: boolean = false,
-    isServer: boolean = false
-  ): Promise<T | HttpError> {
-    return this.requestWithRetry<T>("PATCH", path, data, useAuth, isServer);
-  }
+//   async get<T>(
+//     path: string,
+//     useAuth: boolean = false,
+//     isServer: boolean = false
+//   ): Promise<T | HttpError> {
+//     return this.requestWithRetry<T>("GET", path, undefined, useAuth, isServer);
+//   }
 
-  async delete<T>(
-    path: string,
-    data: unknown,
-    useAuth: boolean = false,
-    isServer: boolean = false
-  ): Promise<T | HttpError> {
-    return this.requestWithRetry<T>("DELETE", path, data, useAuth, isServer);
-  }
+//   async patch<T>(
+//     path: string,
+//     data: unknown,
+//     useAuth: boolean = false,
+//     isServer: boolean = false
+//   ): Promise<T | HttpError> {
+//     return this.requestWithRetry<T>("PATCH", path, data, useAuth, isServer);
+//   }
+
+//   async delete<T>(
+//     path: string,
+//     data: unknown,
+//     useAuth: boolean = false,
+//     isServer: boolean = false
+//   ): Promise<T | HttpError> {
+//     return this.requestWithRetry<T>("DELETE", path, data, useAuth, isServer);
+//   }
 
   //   async upload<T>(
   //     path: string,
@@ -223,4 +236,94 @@ export class HttpService {
 
   //     return response.json() as Promise<T>;
   //   }
+// }
+// services/httpService.ts
+
+ import getBaseUrl, { BaseUrlProdType } from "@/services/baseUrl";
+import { getServerSession } from "next-auth/next";
+import { getSession } from "next-auth/react";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+
+interface HttpError {
+  error: true;
+  message: string;
+}
+
+export class HttpService {
+  private baseUrl: string;
+
+  constructor(env: BaseUrlProdType = "live") {
+    this.baseUrl = getBaseUrl(env);
+  }
+
+  private async getAccessToken(isServer = false) {
+    try {
+      const session = isServer
+        ? await getServerSession(authOptions)
+        : await getSession();
+
+      return session?.accessToken || null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async requestWithRetry<T>(
+    method: "GET" | "POST" | "PATCH" | "DELETE",
+    path: string,
+    data: unknown = null,
+    useAuth = false,
+    isServer = false
+  ): Promise<T | HttpError> {
+    let token: string | null = null;
+
+    if (useAuth) {
+      token = await this.getAccessToken(isServer);
+    }
+
+    const makeRequest = async (accessToken?: string) => {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+
+      return fetch(`${this.baseUrl}${path}`, {
+        method,
+        headers,
+        ...(method === "POST" || method === "PATCH"
+          ? { body: JSON.stringify(data) }
+          : {}),
+      });
+    };
+
+    let response = await makeRequest(token || undefined);
+
+    if (response.status === 401 && useAuth) {
+      const newToken = await this.getAccessToken(isServer); // token refreshed by NextAuth
+      response = await makeRequest(newToken || undefined);
+    }
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      return { error: true, message: err.message || "Request failed" };
+    }
+
+    return response.json() as Promise<T>;
+  }
+
+  post<T>(path: string, data: unknown, useAuth = false, isServer = false) {
+    return this.requestWithRetry<T>("POST", path, data, useAuth, isServer);
+  }
+
+  get<T>(path: string, useAuth = false, isServer = false) {
+    return this.requestWithRetry<T>("GET", path, undefined, useAuth, isServer);
+  }
+
+  patch<T>(path: string, data: unknown, useAuth = false, isServer = false) {
+    return this.requestWithRetry<T>("PATCH", path, data, useAuth, isServer);
+  }
+
+  delete<T>(path: string, data: unknown, useAuth = false, isServer = false) {
+    return this.requestWithRetry<T>("DELETE", path, data, useAuth, isServer);
+  }
 }

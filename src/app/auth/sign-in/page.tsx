@@ -1,21 +1,40 @@
 "use client";
+
 import authService from "@/services/authService";
 import useToastStore from "@/store/useToastStore";
 import { Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useSession, getSession } from "next-auth/react";
 import React, { useEffect, useRef, useState } from "react";
 
 const SignInPage = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { showToast } = useToastStore();
+  const { data: session } = useSession();
+
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
   const [loginAttempts, setLoginAttempts] = useState(0);
   const [lockUntil, setLockUntil] = useState<number | null>(null);
-  const [timeLeft, setTimeLeft] = useState(0); // in seconds
+  const [timeLeft, setTimeLeft] = useState(0);
+
+  const resetTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Redirect immediately if already logged in
+  useEffect(() => {
+    if (session?.user) {
+      const callbackUrl = searchParams.get("callbackUrl") || "/admin";
+      router.replace(callbackUrl);
+    }
+  }, [session, router, searchParams]);
+
+  // Load lock state from localStorage
   useEffect(() => {
     const savedLock = localStorage.getItem("admin-login-lock");
     if (savedLock) {
@@ -27,12 +46,11 @@ const SignInPage = () => {
     }
   }, []);
 
+  // Timer for lock countdown
   useEffect(() => {
     if (!lockUntil) return;
-
     const interval = setInterval(() => {
       const diff = Math.floor((lockUntil - Date.now()) / 1000);
-
       if (diff <= 0) {
         setLockUntil(null);
         setLoginAttempts(0);
@@ -42,16 +60,10 @@ const SignInPage = () => {
         setTimeLeft(diff);
       }
     }, 1000);
-
     return () => clearInterval(interval);
   }, [lockUntil]);
 
-  const { showToast } = useToastStore();
-
-  // Keep track of the reset timer
-  const resetTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Function to reset login attempts
+  // Reset login attempts after 2 minutes
   const resetLoginAttempts = () => {
     setLoginAttempts(0);
     if (resetTimerRef.current) {
@@ -60,7 +72,6 @@ const SignInPage = () => {
     }
   };
 
-  // Automatically reset after 2 minutes of the last attempt
   const startResetTimer = () => {
     if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
     resetTimerRef.current = setTimeout(() => {
@@ -71,12 +82,24 @@ const SignInPage = () => {
         "You can try logging in again now.",
         4000
       );
-    }, 2 * 60 * 1000); // 2 minutes
+    }, 2 * 60 * 1000);
   };
 
-  const handleAdminLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Handle smooth redirect after login
+  const handleLoginRedirect = async (url: string) => {
+    let retries = 0;
+    let currentSession = await getSession();
+    while (!currentSession?.user && retries < 5) {
+      await new Promise((r) => setTimeout(r, 300));
+      currentSession = await getSession();
+      retries++;
+    }
+    router.replace(url);
+  };
 
+  // Form submission
+  const handleAdminLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     if (!email || !password) return;
 
     if (loginAttempts >= 5) {
@@ -93,34 +116,39 @@ const SignInPage = () => {
 
     try {
       const response = await authService.signin({ email, password });
+      console.log("🔍 Sign-in response:", response);
 
-      if (response.success) {
-        showToast("success", "Login Successful", "Account logged in", 3000);
-        resetLoginAttempts(); // Reset on success
-        router.push("/admin");
+      if (response.success && response.url) {
+        showToast("success", "Login Successful", "Redirecting...", 3000);
+        resetLoginAttempts();
+
+        const callbackUrl =
+          searchParams.get("callbackUrl") || response.url || "/admin";
+        await handleLoginRedirect(callbackUrl);
       } else if (response.error) {
         showToast(
           "error",
           "Invalid email or password",
-          "Please try again",
+          response.message || "Please try again",
           5000
         );
+
         setLoginAttempts((prev) => {
           const newAttempts = prev + 1;
           if (newAttempts >= 5) {
-            const lockTime = Date.now() + 5 * 60 * 1000; // 5 minutes
+            const lockTime = Date.now() + 5 * 60 * 1000; // 5 min
             setLockUntil(lockTime);
             localStorage.setItem("admin-login-lock", lockTime.toString());
           }
           return newAttempts;
         });
-      }
 
-      console.log("Login response:", response);
+        startResetTimer();
+      }
     } catch (error) {
       setLoginAttempts((prev) => prev + 1);
       startResetTimer();
-      console.error("Login error:", error);
+      console.error("🔍 Full error:", error);
       showToast(
         "error",
         "Login Failed",
@@ -132,41 +160,35 @@ const SignInPage = () => {
     }
   };
 
-  // Validation for button disable
+  // Validation
   const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
   const isFormValid =
     email.trim() !== "" && isValidEmail && password.length >= 6;
 
-  // Cleanup timer on unmount
+  // Cleanup
   useEffect(() => {
     return () => {
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
     };
   }, []);
 
+  // If user is already logged in, render nothing (or a loading indicator)
+  if (session?.user) return null;
+
   return (
     <section className="flex items-center justify-center h-full md:px-6 px-1 py-8">
       <aside className="flex flex-col items-start md:max-w-[487px] w-full mb-[40px] gap-[32px]">
-        <Image
-          src="/logo/auth-logo.svg"
-          alt="Auth Logo"
-          width={68}
-          height={54}
-        />
+        <Image src="/logo/auth-logo.svg" alt="Auth Logo" width={68} height={54} />
         <div className="flex flex-col gap-[16px]">
           <h3 className="text-[#171417] font-bold text-[1.625rem] leading-[120%]">
             Welcome Back
           </h3>
           <p className="text-[#454345] text-[1rem] leading-[140%] mt-[12px]">
-            Enter your account credential to login as an admin
+            Enter your account credentials to login as an admin
           </p>
         </div>
 
-        <form
-          className="flex flex-col gap-[16px] w-full"
-          onSubmit={handleAdminLogin}
-        >
+        <form className="flex flex-col gap-[16px] w-full" onSubmit={handleAdminLogin}>
           <div className="flex flex-col gap-[8px]">
             <label
               className="text-[#05060B] font-medium text-[1rem] leading-[140%]"
@@ -219,21 +241,21 @@ const SignInPage = () => {
               </Link>
             </p>
           </div>
-        </form>
 
-        <button
-          onClick={handleAdminLogin}
-          disabled={isLoading || !isFormValid || loginAttempts >= 5}
-          type="submit"
-          className="[background:var(--primary-radial)] text-white font-medium leading-[140%] rounded-[20px] w-full py-[16px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isLoading
-            ? "Logging in..."
-            : loginAttempts >= 5
-            ? "Try again in 5 minutes"
-            : "Log In"}
-        </button>
+          <button
+            disabled={isLoading || !isFormValid || loginAttempts >= 5}
+            type="submit"
+            className="[background:var(--primary-radial)] text-white font-medium leading-[140%] rounded-[20px] w-full py-[16px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading
+              ? "Logging in..."
+              : loginAttempts >= 5
+              ? "Try again in 5 minutes"
+              : "Log In"}
+          </button>
+        </form>
       </aside>
+
       {loginAttempts >= 5 && lockUntil && (
         <section className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50">
           <aside className="flex items-center justify-center flex-col gap-6 shadow-lg md:w-[223px] w-[65%] bg-white md:rounded-2xl p-6">
