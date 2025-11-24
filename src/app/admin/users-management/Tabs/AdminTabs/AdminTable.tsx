@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import Image from "next/image";
 import UserManagementStatusBadge from "../../UserManagementStatusBadge";
 import { formatDate, getRandomDate } from "@/utils/formatTime";
@@ -5,75 +6,80 @@ import { FaUserCircle } from "react-icons/fa";
 import { userManagementStore, UserType } from "@/store/userManagementStore";
 import { cn } from "@/lib/utils";
 import { EllipsisVertical } from "lucide-react";
+import { useEffect, useState } from "react";
+import axios from "axios";
 
-const users: UserType[] = [
-  {
-    name: "Chuka Nwosu",
-    email: "bill.sandra@gmail.com",
-    phone: "+2348484884848",
-    location: "Ikeja, Lagos",
-    status: "Active",
-    role: "Super Admin",
-    createdAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
-    updatedAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
-    avatar: "/avatars/avatar1.png",
-  },
-  {
-    name: "Chuka Nwosu",
-    email: "bill.sandra@gmail.com",
-    phone: "+2348484884848",
-    status: "Inactive",
-    location: "Uyo, Akwa Ibom",
-    role: "Admin",
-    createdAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
-    updatedAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
-    avatar: "/avatars/avatar1.png",
-  },
-  {
-    name: "Chuka Nwosu",
-    email: "bill.sandra@gmail.com",
-    phone: "+2348484884848",
-    status: "Active",
-    location: "Ikeja, Lagos",
-    role: "User Manager",
-    createdAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
-    updatedAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
-    avatar: "/avatars/avatar1.png",
-  },
-  {
-    name: "Chuka Nwosu",
-    email: "bill.sandra@gmail.com",
-    phone: "+2348484884848",
-    status: "Active",
-    role: "Booking Manager",
-    location: "Abuja, FCT",
-    createdAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
-    updatedAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
-    avatar: "/avatars/avatar1.png",
-  },
-  {
-    name: "Chuka Nwosu",
-    email: "bill.sandra@gmail.com",
-    phone: "+2348484884848",
-    status: "Inactive",
-    location: "Uyo, Akwa Ibom",
-    role: "Admin",
-    createdAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
-    updatedAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
-    avatar: "/avatars/avatar1.png",
-  },
-  {
-    name: "Chuka Nwosu",
-    email: "bill.sandra@gmail.com",
-    phone: "+2348484884848",
-    status: "Active",
-    location: "Calabar, Cross River",
-    role: "User Manager",
-    createdAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
-    updatedAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
-    avatar: "/avatars/avatar1.png",
-  },
-];
+const API_TOKEN =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjNmQwODkzYS03NTFiLTQ3NjQtYjU5MC05Y2UyMDk4Y2JhMjUiLCJlbWFpbCI6ImluZm9Ab25ldW5pdmVyc2UubmciLCJyb2xlcyI6WyJTVVBFUl9BRE1JTiJdLCJpYXQiOjE3NjMwNDMwMjksImV4cCI6MTc2MzA0MzkyOX0.QzTNlJwyv5PVR7AaTOsdT121vtmvR8fkIYOvx3bjzo8";
+
+// const users: UserType[] = [
+//   {
+//     name: "Chuka Nwosu",
+//     email: "bill.sandra@gmail.com",
+//     phone: "+2348484884848",
+//     location: "Ikeja, Lagos",
+//     status: "Active",
+//     role: "Super Admin",
+//     createdAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
+//     updatedAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
+//     avatar: "/avatars/avatar1.png",
+//   },
+//   {
+//     name: "Chuka Nwosu",
+//     email: "bill.sandra@gmail.com",
+//     phone: "+2348484884848",
+//     status: "Inactive",
+//     location: "Uyo, Akwa Ibom",
+//     role: "Admin",
+//     createdAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
+//     updatedAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
+//     avatar: "/avatars/avatar1.png",
+//   },
+//   {
+//     name: "Chuka Nwosu",
+//     email: "bill.sandra@gmail.com",
+//     phone: "+2348484884848",
+//     status: "Active",
+//     location: "Ikeja, Lagos",
+//     role: "User Manager",
+//     createdAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
+//     updatedAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
+//     avatar: "/avatars/avatar1.png",
+//   },
+//   {
+//     name: "Chuka Nwosu",
+//     email: "bill.sandra@gmail.com",
+//     phone: "+2348484884848",
+//     status: "Active",
+//     role: "Booking Manager",
+//     location: "Abuja, FCT",
+//     createdAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
+//     updatedAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
+//     avatar: "/avatars/avatar1.png",
+//   },
+//   {
+//     name: "Chuka Nwosu",
+//     email: "bill.sandra@gmail.com",
+//     phone: "+2348484884848",
+//     status: "Inactive",
+//     location: "Uyo, Akwa Ibom",
+//     role: "Admin",
+//     createdAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
+//     updatedAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
+//     avatar: "/avatars/avatar1.png",
+//   },
+//   {
+//     name: "Chuka Nwosu",
+//     email: "bill.sandra@gmail.com",
+//     phone: "+2348484884848",
+//     status: "Active",
+//     location: "Calabar, Cross River",
+//     role: "User Manager",
+//     createdAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
+//     updatedAt: getRandomDate(new Date(2025, 0, 1), new Date(2025, 9, 30)),
+//     avatar: "/avatars/avatar1.png",
+//   },
+// ];
 
 const AdminTable = () => {
   const { openModal } = userManagementStore();
@@ -82,6 +88,65 @@ const AdminTable = () => {
     console.log("Selected User:", user);
     openModal("openAdmin", user);
   };
+  const [user, setUser] = useState<UserType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await axios.get(
+          "https://one-universe-de5673cf0d65.herokuapp.com/api/v1/admin/others",
+          {
+            headers: {
+              Authorization: `Bearer ${API_TOKEN}`,
+            },
+          }
+        );
+        console.log("Fetched Users:", response.data.data);
+        setUser(response.data.data);
+      } catch (error: any) {
+        console.error("Error fetching users:", error);
+        if (error.response?.status === 401) {
+          setError(
+            "Authentication failed. Please login again or refresh your token."
+          );
+        } else {
+          setError("Failed to fetch users. Please try again later.");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="w-full flex items-center justify-center py-8">
+        <p className="text-gray-500">Loading users...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full flex items-center justify-center py-8">
+        <div className="text-center">
+          <p className="text-red-500 mb-2">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="text-blue-500 hover:underline"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="w-full">
       {/* Desktop Table */}
@@ -104,36 +169,38 @@ const AdminTable = () => {
             </tr>
           </thead>
           <tbody className="text-[#303237]">
-            {users.map((user, i) => (
+            {user.map((item) => (
               <tr
-                key={i}
+                key={item.id}
                 className={cn(
                   "border-t border-gray-100 hover:bg-gray-50 transition h-[60px]"
                 )}
-                onClick={() => handleSelectUser(user)}
+                onClick={() => handleSelectUser(item)}
               >
                 <td className="py-3 px-4  gap-3">
                   <div className="flex items-center gap-2">
                     <div className="relative size-6 rounded-full overflow-hidden">
                       <Image
                         src="/images/user.png"
-                        alt={user.name}
+                        alt={item.fullName}
                         fill
                         className="object-cover"
                       />
                     </div>
                     <p className="font-medium text-gray-900 hover:underline cursor-pointer">
-                      {user.name}
+                      {item.fullName}
                     </p>
                   </div>
                 </td>
-                <td className="py-3 px-4 text-[#303237]">{user.email}</td>
+                <td className="py-3 px-4 text-[#303237]">{item.email}</td>
                 <td className="py-3 px-4 text-[#454345]">
-                  {formatDate(user.createdAt as Date).date}
+                  {item.createdAt
+                    ? formatDate(new Date(item.createdAt)).date
+                    : "N/A"}
                 </td>
-                <td className="py-3 px-4">{user.role}</td>
+                <td className="py-3 px-4">{item.role}</td>
                 <td className="py-3 px-4 text-[#303237]">
-                  <UserManagementStatusBadge status={user.status} />
+                  <UserManagementStatusBadge status={item.status} />
                 </td>
                 <td className="py-3 px-4 text-[#303237]">
                   <EllipsisVertical />
@@ -146,29 +213,31 @@ const AdminTable = () => {
 
       {/* Mobile Cards */}
       <div className="grid gap-4 md:hidden">
-        {users.map((user, i) => (
+        {user.map((item) => (
           <div
-            key={i}
+            key={item.id}
             className="flex items-center justify-between border border-gray-200 rounded-2xl p-4 bg-white shadow-sm"
           >
             <div className="flex items-center gap-3">
               <div className="relative w-10 h-10 rounded-full overflow-hidden">
                 <Image
                   src="/images/user.png"
-                  alt={user.name}
+                  alt={item.fullName}
                   fill
                   className="object-cover"
                 />
               </div>
               <div>
-                <p className="font-semibold text-gray-900">{user.name}</p>
+                <p className="font-semibold text-gray-900">{item.fullName}</p>
                 <p className="text-sm text-gray-500">
-                  {formatDate(user.createdAt as Date).date}
+                  {item.createdAt
+                    ? formatDate(new Date(item.createdAt)).date
+                    : "N/A"}
                 </p>
               </div>
             </div>
 
-            <UserManagementStatusBadge status={user.status} />
+            <UserManagementStatusBadge status={item.status} />
           </div>
         ))}
       </div>

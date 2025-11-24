@@ -4,12 +4,12 @@ import { FiClock } from "react-icons/fi";
 
 export type UserManagementStatusBadgeProp = {
   status:
-    | "Inactive"
-    | "Active"
-    | "Pending"
-    | "Verified"
-    | "Unverified"
-    | "Deactivated";
+    | "INACTIVE"
+    | "ACTIVE"
+    | "PENDING"
+    | "VERIFIED"
+    | "UNVERIFIED"
+    | "DEACTIVATED";
 };
 
 const statusConfig: Record<
@@ -20,34 +20,34 @@ const statusConfig: Record<
     bgClass: string;
   }
 > = {
-  Active: {
+  ACTIVE: {
     icon: <CircleCheck size={16} className="text-[#1FC16B]" />,
     bgClass: "bg-[#E0F5E6]",
     textClass: "text-[#1FC16B]",
   },
-  Inactive: {
+  INACTIVE: {
     icon: <Flag size={16} className="text-[#D00416]" />,
     bgClass: "bg-[#FB37481A]",
     textClass: "text-[#D00416]",
   },
-  Deactivated: {
+  DEACTIVATED: {
     icon: <Flag size={16} className="text-[#D00416]" />,
     bgClass: "bg-[#FB37481A]",
     textClass: "text-[#D00416]",
   },
 
-  Verified: {
+  VERIFIED: {
     icon: <CircleCheck size={16} className="text-[#1FC16B]" />,
     bgClass: "bg-[#E0F5E6]",
     textClass: "text-[#1FC16B]",
   },
-  Unverified: {
+  UNVERIFIED: {
     icon: <AlertTriangle size={16} className="text-[#9D7F04]" />,
     bgClass: "bg-[#FFF2B9]",
     textClass: "text-[#9D7F04]",
   },
 
-  Pending: {
+  PENDING: {
     icon: <FiClock size={16} className="text-[#272727]" />,
     bgClass: "bg-[#E5E5E5]",
     textClass: "text-[#272727]",

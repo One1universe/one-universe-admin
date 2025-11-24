@@ -1,155 +1,421 @@
 "use client";
-import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useGetDashboardMonthlyStats } from "@/hooks/dashboard/useGetDashboardMonthlyStats";
-import { ListFilter, MoveUp, Search } from "lucide-react";
-import Image from "next/image";
-import React from "react";
-import ServiceTabSelector from "./ServiceTabSelector";
-import { Tabs } from "@/components/ui/tabs";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Check,
+  X,
+  Clock,
+  ChevronDown,
+  ListFilter,
+  MoveUp,
+  Search,
+} from "lucide-react";
+import EmptyService from "../components/EmptyService";
+import { services } from "../utils/service";
+import EmptyApprovedService from "../components/empty-service/EmptyApprovedService";
+import EmptyRejectedService from "../components/empty-service/EmptyRejectedService";
+import EmptyPendingService from "../components/empty-service/EmptyPendingService";
+
+type ServiceStatus = "Pending" | "Approved" | "Rejected";
 
 const ServiceManagementPage = () => {
-  const { data, isLoading, isError, error } = useGetDashboardMonthlyStats();
+  const [activeTab, setActiveTab] = useState<ServiceStatus>("Pending");
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [expandedService, setExpandedService] = useState<string | null>(null);
+  const [showFilter, setShowFilter] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
+
+  // Detect click outside to close filter
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        filterRef.current &&
+        !filterRef.current.contains(event.target as Node)
+      ) {
+        setShowFilter(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const toggleService = (id: string) => {
+    setSelectedServices((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+    );
+  };
+
+  const toggleAllServices = () => {
+    const filteredServices = services.filter((s) => s.status === activeTab);
+    if (selectedServices.length === filteredServices.length) {
+      setSelectedServices([]);
+    } else {
+      setSelectedServices(filteredServices.map((s) => s.id));
+    }
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedService(expandedService === id ? null : id);
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const getAvatarColor = (name: string) => {
+    const colors = [
+      "bg-blue-500",
+      "bg-green-500",
+      "bg-purple-500",
+      "bg-orange-500",
+      "bg-pink-500",
+      "bg-indigo-500",
+    ];
+    const index = name.length % colors.length;
+    return colors[index];
+  };
+
+  const getServiceCount = (status: ServiceStatus) => {
+    return services.filter((s) => s.status === status).length;
+  };
+
+  const filteredServices = services.filter((s) => s.status === activeTab);
 
   const stats = [
     {
       label: "Pending Requests",
-      color: "[background:var(--primary-radial)]",
-      total: 0,
-      growth: data?.buyers?.growthPercentage ?? 0,
-      growthType: data?.buyers?.growthType ?? "neutral",
+      color: "bg-gradient-to-br from-purple-500 to-blue-600",
+      total: getServiceCount("Pending"),
+      growth: 12,
+      growthType: "positive",
     },
     {
       label: "Approved Today",
       color: "bg-[#67A344]",
-      total: 0,
-      growth: data?.sellers?.growthPercentage ?? 0,
-      growthType: data?.sellers?.growthType ?? "neutral",
+      total: getServiceCount("Approved"),
+      growth: 8,
+      growthType: "positive",
     },
     {
       label: "Total Services",
       color: "bg-[#3621EE]",
-      total: 0,
-      growth: data?.users?.growthPercentage ?? 0,
-      growthType: data?.users?.growthType ?? "neutral",
+      total: services.length,
+      growth: 5,
+      growthType: "positive",
     },
   ];
+
   return (
-    <Tabs
-      defaultValue="Buyers"
-      className="flex flex-col gap-[8px] md:gap-[16px]"
-    >
-      <section className="grid grid-cols-1 min-[410px]:grid-cols-2 min-[1200px]:grid-cols-3 gap-[16px] my-[24px]">
-        {isLoading
-          ? Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton
-                key={i}
-                className="h-[123px] rounded-[8px] border border-[#E8E3E3]"
-              />
-            ))
-          : stats.map(({ label, color, total, growth, growthType }) => {
-              const isPositive = growthType === "positive";
-              return (
-                <aside
-                  key={label}
-                  className="h-[123px] border border-[#E8E3E3] rounded-[8px] py-[12px] px-[16px] flex flex-col gap-[8px]"
+    <div className="w-full bg-gray-50 min-h-screen p-4 md:p-6">
+      {/* Stats Section */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        {stats.map(({ label, color, total, growth, growthType }) => {
+          const isPositive = growthType === "positive";
+          return (
+            <div
+              key={label}
+              className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col gap-3"
+            >
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`${color} w-5 h-5 p-1 rounded flex items-center justify-center`}
+                  >
+                    <div className="w-3 h-3 bg-white rounded-sm"></div>
+                  </div>
+                  <h3 className="text-gray-900 font-medium text-base">
+                    {label}
+                  </h3>
+                </div>
+                <h3 className="font-bold text-gray-900 text-xl">
+                  {total.toLocaleString()}
+                </h3>
+              </div>
+              <div className="w-full h-px bg-gray-200"></div>
+              <div className="flex items-center gap-2">
+                <div
+                  className={`p-0.5 rounded ${
+                    isPositive ? "bg-green-100" : "bg-red-100"
+                  }`}
                 >
-                  <div className="flex flex-col gap-[16px]">
-                    <div className="flex items-center gap-[8px]">
-                      <div className={`${color} size-[20px] p-1 rounded-[4px]`}>
-                        <Image
-                          src="/logo/logo-vector.svg"
-                          alt="Logo"
-                          width={12}
-                          height={11}
-                        />
-                      </div>
-                      <h3 className="text-[#171417] font-medium leading-[140%] text-[1rem]">
-                        {label}
-                      </h3>
-                    </div>
-                    <h3 className="font-bold text-[#171417] text-[1.25rem] leading-[140%]">
-                      {total.toLocaleString()}
-                    </h3>
-                  </div>
-                  <Separator />
-                  <div className="flex items-center gap-[8px]">
-                    <div
-                      className={`p-0.5 rounded-[2px] ${
-                        isPositive ? "bg-[#D7FFE9]" : "bg-[#E9BCB7]"
-                      }`}
-                    >
-                      <MoveUp
-                        size={8}
-                        className={`${
-                          isPositive ? "text-[#1FC16B]" : "text-[#D00416]"
-                        }`}
-                      />
-                    </div>
-                    <p className="text-[#171417] text-[.75rem] font-normal leading-[140%]">
-                      <span
-                        className={
-                          isPositive ? "text-[#1FC16B]" : "text-[#D00416]"
-                        }
-                      >
-                        {isPositive ? "+" : "-"}
-                        {growth}%
-                      </span>{" "}
-                      from last month
-                    </p>
-                  </div>
-                </aside>
-              );
-            })}
+                  <MoveUp
+                    size={10}
+                    className={`${
+                      isPositive ? "text-green-600" : "text-red-600 rotate-180"
+                    }`}
+                  />
+                </div>
+                <p className="text-gray-900 text-xs font-normal">
+                  <span
+                    className={isPositive ? "text-green-600" : "text-red-600"}
+                  >
+                    {isPositive ? "+" : "-"}
+                    {growth}%
+                  </span>{" "}
+                  from last month
+                </p>
+              </div>
+            </div>
+          );
+        })}
       </section>
-      <div className="my-[30px] md:px-[15px]">
-        <section className="pb-3 flex flex-col gap-3.5">
-          <h3 className="text-[#171417] font-medium text-[1.25rem] leading-[140%] mb-[20px] px-[25px]">
+
+      {/* Service Requests Section */}
+      <div className="bg-white rounded-lg shadow-sm">
+        <div className="border-b border-gray-200 p-4 md:p-6">
+          <h3 className="text-gray-900 font-medium text-xl mb-6">
             Service Requests
           </h3>
-          <section className="flex flex-col gap-5">
-            <ServiceTabSelector />
-            <aside className="flex items-center justify-between gap-[24px]">
-              <div className="border border-[#B7B6B7] relative w-[532px] rounded-[8px]">
-                <input
-                  type="text"
-                  placeholder="Search by name, email, service, or phone..."
-                  className="w-full h-[46px] pl-[40px] pr-[16px] rounded-[8px] outline-none text-[#7B7B7B] placeholder:text-[#6B6969] placeholder:text-[.75rem] text-[.75rem] md:text-[1rem] leading-[140%] font-normal"
-                />
-                <Search
-                  size={16}
-                  className="text-[#6B6969] absolute left-4 top-4"
-                />
-              </div>
-              <div className="">
-                <button
-                  className="border border-[#B7B6B7] flex items-center h-[48px] md:h-[46px]  px-[8px] rounded-[8px] gap-2 cursor-pointer"
-                  type="button"
-                >
-                  <ListFilter size={16} />
-                  <span className="md:block hidden text-[#171417] text-[1rem] leading-[140%]">
-                    Filter
-                  </span>
-                </button>
-              </div>
-            </aside>
-          </section>
-        </section>
-        {/* <TabsContent value="Buyers">
-          <BuyersTable />
-        </TabsContent>
-        <TabsContent value="Sellers">
-          <SellersTable />
-        </TabsContent>
-        <TabsContent value="Admin Users">
-          <AdminTable />
-        </TabsContent>
-        {modalType === "openBuyer" && <BuyerDetails />}
-        {modalType === "openSeller" && <SellerDetails />} */}
 
-        {/* <BuyersTable /> */}
+          {/* Custom Tabs */}
+          <div className="flex items-center gap-0 mb-6 overflow-x-auto">
+            {(["Pending", "Approved", "Rejected"] as ServiceStatus[]).map(
+              (tab) => {
+                const count = getServiceCount(tab);
+                const isActive = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`relative px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
+                      isActive
+                        ? "text-gray-900"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    {tab} Requests ({count})
+                    {isActive && (
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"></div>
+                    )}
+                  </button>
+                );
+              }
+            )}
+          </div>
+
+          {/* Search and Filter */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            <div className="flex-1 relative max-w-xl">
+              <input
+                type="text"
+                placeholder="Search by name, email, service, or phone..."
+                className="w-full h-12 pl-10 pr-4 border border-gray-300 rounded-lg outline-none focus:border-gray-400 text-gray-700 placeholder:text-gray-500 text-sm"
+              />
+              <Search
+                size={16}
+                className="text-gray-500 absolute left-3 top-1/2 -translate-y-1/2"
+              />
+            </div>
+            <button
+              onClick={() => setShowFilter(!showFilter)}
+              className="border border-gray-300 flex items-center justify-center h-12 px-4 rounded-lg gap-2 hover:bg-gray-50 transition-colors"
+              type="button"
+            >
+              <ListFilter size={16} className="text-gray-700" />
+              <span className="text-gray-900 text-sm font-medium">Filter</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Section */}
+        {showFilter && (
+          <div
+            ref={filterRef}
+            className="border-b border-gray-200 p-4 bg-gray-50"
+          >
+            <p className="text-sm text-gray-600">
+              Filter options would go here...
+            </p>
+          </div>
+        )}
+
+        {/* Table Section */}
+        {filteredServices.length === 0 ? (
+          // <EmptyService />
+          <>
+            {activeTab === "Pending" && <EmptyPendingService />}
+            {activeTab === "Approved" && <EmptyApprovedService />}
+            {activeTab === "Rejected" && <EmptyRejectedService />}
+          </>
+        ) : (
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-4 px-6 w-12">
+                      <input
+                        type="checkbox"
+                        checked={
+                          selectedServices.length === filteredServices.length &&
+                          filteredServices.length > 0
+                        }
+                        onChange={toggleAllServices}
+                        className="w-5 h-5 rounded border-gray-300 cursor-pointer"
+                      />
+                    </th>
+                    <th className="text-left py-4 px-6 text-sm font-medium text-gray-600">
+                      Seller Name
+                    </th>
+                    <th className="text-left py-4 px-6 text-sm font-medium text-gray-600">
+                      Submitted Service
+                    </th>
+                    <th className="text-left py-4 px-6 text-sm font-medium text-gray-600">
+                      Submitted
+                    </th>
+                    <th className="text-left py-4 px-6 text-sm font-medium text-gray-600">
+                      Status
+                    </th>
+                    <th className="text-left py-4 px-6 text-sm font-medium text-gray-600">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredServices.map((service) => (
+                    <tr
+                      key={service.id}
+                      className="border-b border-gray-100 hover:bg-gray-50"
+                    >
+                      <td className="py-4 px-6">
+                        <input
+                          type="checkbox"
+                          checked={selectedServices.includes(service.id)}
+                          onChange={() => toggleService(service.id)}
+                          className="w-5 h-5 rounded border-gray-300 cursor-pointer"
+                        />
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-10 h-10 rounded-full ${getAvatarColor(
+                              service.sellerName
+                            )} flex items-center justify-center text-white text-sm font-medium`}
+                          >
+                            {getInitials(service.sellerName)}
+                          </div>
+                          <span className="text-sm font-medium text-gray-900">
+                            {service.sellerName}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 text-sm text-gray-900">
+                        {service.title}
+                      </td>
+                      <td className="py-4 px-6 text-sm text-gray-900">
+                        {typeof service.createdAt === "string"
+                          ? service.createdAt
+                          : service.createdAt.toLocaleDateString()}
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full">
+                          <Clock size={14} className="text-gray-600" />
+                          <span className="text-sm text-gray-700">
+                            {service.status}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-2">
+                          <button className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-medium transition-colors">
+                            <Check size={16} />
+                            Approve
+                          </button>
+                          <button className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors">
+                            <X size={16} />
+                            Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile List */}
+            <div className="md:hidden p-4 space-y-3">
+              {filteredServices.map((service) => (
+                <div key={service.id}>
+                  <div
+                    className={`border rounded-lg transition-all ${
+                      expandedService === service.id
+                        ? "border-gray-300 shadow-sm"
+                        : "border-gray-200"
+                    }`}
+                  >
+                    <div
+                      className="flex items-center gap-3 p-4 cursor-pointer"
+                      onClick={() => toggleExpand(service.id)}
+                    >
+                      <div
+                        className={`w-10 h-10 rounded-full ${getAvatarColor(
+                          service.sellerName
+                        )} flex items-center justify-center text-white text-sm font-medium flex-shrink-0`}
+                      >
+                        {getInitials(service.sellerName)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-medium text-gray-900 truncate">
+                          {service.sellerName}
+                        </h3>
+                        <p className="text-sm text-gray-600 truncate">
+                          {service.title}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 rounded-full">
+                          <Clock size={12} className="text-gray-600" />
+                          <span className="text-xs text-gray-700">
+                            {service.status}
+                          </span>
+                        </div>
+                        <ChevronDown
+                          size={20}
+                          className={`text-gray-400 transition-transform ${
+                            expandedService === service.id ? "rotate-180" : ""
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {expandedService === service.id && (
+                      <div className="px-4 pb-4 space-y-3 border-t border-gray-100">
+                        <div className="pt-3">
+                          <p className="text-xs text-gray-600 mb-1">
+                            <p className="text-sm font-medium text-gray-900">
+                              {typeof service.createdAt === "string"
+                                ? service.createdAt
+                                : service.createdAt.toLocaleDateString()}
+                            </p>
+                            {typeof service.createdAt === "string"
+                              ? service.createdAt
+                              : service.createdAt.toLocaleDateString()}
+                          </p>
+                        </div>
+                        <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-medium transition-colors">
+                          <Check size={16} />
+                          Approve
+                        </button>
+                        <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors">
+                          <X size={16} />
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
-    </Tabs>
+    </div>
   );
 };
 

@@ -4,7 +4,8 @@ import { create } from "zustand";
 type ModalType = "openBuyer" | "openSeller" | "openAdmin" | null;
 
 export type UserType = {
-  name: string;
+  id: string;
+  fullName: string;
   email: string;
   phone: string;
   location?: string;
@@ -21,8 +22,6 @@ interface ModalState {
   selectedUser: UserType | null;
   openModal: (type: ModalType, user?: UserType) => void;
   closeModal: () => void;
-
-  
 }
 
 export const userManagementStore = create<ModalState>((set) => ({
