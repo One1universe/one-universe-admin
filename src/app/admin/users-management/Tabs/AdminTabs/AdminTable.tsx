@@ -1,29 +1,46 @@
 "use client";
 
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { FaUserCircle } from "react-icons/fa";
 import UserManagementStatusBadge from "../../UserManagementStatusBadge";
 import { userManagementStore, UserType } from "@/store/userManagementStore";
 import { formatDate } from "@/utils/formatTime";
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import getBaseUrl from "@/services/baseUrl";
 
 const BASE_URL = getBaseUrl();
 
-export default function BuyersTable() {
+interface AdminTableProps {
+  currentPage: number;
+  onTotalPagesChange: (totalPages: number) => void;
+}
+
+interface ApiResponse {
+  data: UserType[];
+  pagination?: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
+}
+
+export default function AdminTable({ currentPage, onTotalPagesChange }: AdminTableProps) {
   const { openModal } = userManagementStore();
   const { data: session, status } = useSession();
 
-  const [user, setUser] = useState<UserType[]>([]);
+  const [admins, setAdmins] = useState<UserType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSelectUser = (user: UserType) => {
-    openModal("openBuyer", user);
+  const handleSelectAdmin = (admin: UserType) => {
+    openModal("openAdmin", admin);
   };
+
+  // THIS IS THE KEY FIX: Stabilize the callback to prevent infinite re-fetch
+  const stableTotalPagesCallback = useCallback(onTotalPagesChange, []);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -33,61 +50,73 @@ export default function BuyersTable() {
       return;
     }
 
-    const fetchUsers = async () => {
+    const fetchAdmins = async () => {
       try {
         setLoading(true);
+        setError(null);
 
-        // ALWAYS use NextAuth token first (it contains refreshed tokens)
-        const token = session?.accessToken 
-          || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const token =
+          session?.accessToken ||
+          (typeof window !== "undefined" ? localStorage.getItem("token") : null);
 
         if (!token) {
-          setError("No valid authentication found.");
-          setLoading(false);
+          setError("No authentication token found.");
           return;
         }
 
-        const response = await axios.get(`${BASE_URL}/admin/others`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await axios.get<ApiResponse>(
+          `${BASE_URL}/admin/others?page=${currentPage}&limit=10`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
-        setUser(response.data.data);
+        const data = response.data.data || [];
+        setAdmins(data);
+
+        // Only update total pages if available
+        const totalPages = response.data.pagination?.pages || 1;
+        stableTotalPagesCallback(totalPages);
       } catch (err: any) {
-        console.error("User fetch error:", err);
-
-        if (err.response?.status === 401) {
-          setError("Session expired. Please sign in again.");
-        } else {
-          setError("Failed to fetch users.");
-        }
+        console.error("Failed to fetch admins:", err);
+        setError(
+          err.response?.status === 401
+            ? "Session expired. Please sign in again."
+            : "Failed to load admin users."
+        );
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUsers();
-  }, [session, status]);
+    fetchAdmins();
+  }, [currentPage, session?.accessToken, status, stableTotalPagesCallback]);
+  //                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Stable!
 
-  if (loading || status === "loading") {
+  // Loading & Auth States
+  if (status === "loading" || loading) {
     return (
-      <div className="w-full flex items-center justify-center py-8">
-        <p className="text-gray-500">Loading users...</p>
+      <div className="w-full flex items-center justify-center py-12">
+        <p className="text-gray-500">Loading admin users...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="w-full flex items-center justify-center py-8">
-        <div className="text-center">
-          <p className="text-red-500 mb-2">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="text-blue-500 hover:underline"
-          >
-            Retry
-          </button>
-        </div>
+      <div className="w-full text-center py-12">
+        <p className="text-red-500 mb-4">{error}</p>
+        <button onClick={() => window.location.reload()} className="text-blue-500 hover:underline">
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (admins.length === 0) {
+    return (
+      <div className="w-full text-center py-12 text-gray-500">
+        No admin users found.
       </div>
     );
   }
@@ -114,27 +143,27 @@ export default function BuyersTable() {
           </thead>
 
           <tbody className="text-[#303237]">
-            {user.map((item) => (
+            {admins.map((item) => (
               <tr
                 key={item.id}
                 className={cn(
                   "border-t border-gray-100 hover:bg-gray-50 transition h-[60px] cursor-pointer"
                 )}
-                onClick={() => handleSelectUser(item)}
+                onClick={() => handleSelectAdmin(item)}
               >
                 <td className="py-3 px-4">
-                  <div className="flex items-center gap-2">
-                    <div className="relative w-[30px] h-[30px] rounded-full overflow-hidden bg-gray-200">
-                      {item.avatar ? (
-                        <Image
-                          src={item.avatar}
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-200">
+                      {item.profilePicture ? (
+                        <img
+                          src={item.profilePicture}
                           alt={item.fullName}
-                          fill
-                          className="object-cover"
+                          className="w-full h-full object-cover"
+                          loading="lazy"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <FaUserCircle className="text-gray-400" size={30} />
+                          <FaUserCircle className="text-gray-400" size={32} />
                         </div>
                       )}
                     </div>
@@ -143,8 +172,9 @@ export default function BuyersTable() {
                     </p>
                   </div>
                 </td>
+
                 <td className="py-3 px-4">{item.email}</td>
-                <td className="py-3 px-4">{item.phone}</td>
+                <td className="py-3 px-4">{item.phone || "N/A"}</td>
                 <td className="py-3 px-4">
                   <UserManagementStatusBadge status={item.status} />
                 </td>
@@ -161,28 +191,27 @@ export default function BuyersTable() {
       </div>
 
       {/* Mobile Cards */}
-      <div className="grid gap-4 md:hidden">
-        {user.map((item) => (
+      <div className="grid gap-4 md:hidden px-4 py-6">
+        {admins.map((item) => (
           <div
             key={item.id}
             className="flex items-center justify-between border border-gray-200 rounded-2xl p-4 bg-white shadow-sm cursor-pointer"
-            onClick={() => handleSelectUser(item)}
+            onClick={() => handleSelectAdmin(item)}
           >
             <div className="flex items-center gap-3">
-              <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200">
-                {item.avatar ? (
-                  <Image
-                    src={item.avatar}
+              <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gray-200">
+                {item.profilePicture ? (
+                  <img
+                    src={item.profilePicture}
                     alt={item.fullName}
-                    fill
-                    className="object-cover"
+                    className="w-full h-full object-cover"
+                    loading="lazy"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <FaUserCircle className="text-gray-400" size={40} />
-                  </div>
+                  <FaUserCircle className="w-full h-full text-gray-400" />
                 )}
               </div>
+
               <div>
                 <p className="font-semibold text-gray-900">{item.fullName}</p>
                 <p className="text-sm text-gray-500">

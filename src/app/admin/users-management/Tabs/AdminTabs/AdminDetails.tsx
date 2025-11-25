@@ -13,7 +13,7 @@ import {
   DeactivateModal,
 } from "@/app/admin/users-management/components/modals/UserActionModals";
 
-const BuyerDetails = () => {
+const AdminDetails = () => {
   const { modalType, selectedUser, closeModal } = userManagementStore();
   const { data: session } = useSession();
 
@@ -82,14 +82,14 @@ const BuyerDetails = () => {
 
   return (
     <AnimatePresence>
-      {modalType === "openBuyer" && selectedUser && (
+      {modalType === "openAdmin" && selectedUser && (
         <motion.div
           className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          {/* MAIN BUYER DETAILS MODAL */}
+          {/* MAIN ADMIN DETAILS MODAL */}
           <motion.div
             className="shadow-lg w-full md:w-[65%] bg-white md:rounded-2xl"
             initial={{ y: 100, opacity: 0 }}
@@ -107,7 +107,7 @@ const BuyerDetails = () => {
                   <X size={18} />
                 </button>
                 <h2 className="text-xl font-bold text-[#171417]">
-                  Buyer Profile
+                  Admin Profile
                 </h2>
               </div>
               <button className="bg-gradient-to-r from-teal-600 to-cyan-700 py-1.5 px-6 text-white rounded-[36px] font-medium text-sm">
@@ -122,8 +122,8 @@ const BuyerDetails = () => {
                   <strong>Name</strong>
                   <span>
                     {selectedUser.fullName}{" "}
-                    <span className="bg-gray-200 px-2 py-1 rounded text-xs">
-                      Buyer
+                    <span className="bg-purple-200 text-purple-800 px-2 py-1 rounded text-xs">
+                      Admin
                     </span>
                   </span>
                 </div>
@@ -145,7 +145,7 @@ const BuyerDetails = () => {
                   <UserManagementStatusBadge status={selectedUser.status} />
                 </div>
                 <div className="flex justify-between">
-                  <strong>Wallet</strong> <strong>₦23,450</strong>
+                  <strong>Role</strong> <strong>Administrator</strong>
                 </div>
                 <div className="flex justify-between">
                   <strong>Registered</strong> <span>May 11, 2025</span>
@@ -161,14 +161,14 @@ const BuyerDetails = () => {
                     onClick={() => setShowDeactivateModal(true)}
                     className="bg-red-600 text-white px-6 py-2 rounded-full text-sm"
                   >
-                    Deactivate Buyer
+                    Deactivate Admin
                   </button>
                 ) : (
                   <button
                     onClick={() => setShowReactivateModal(true)}
                     className="bg-green-600 text-white px-6 py-2 rounded-full text-sm"
                   >
-                    Reactivate Buyer
+                    Reactivate Admin
                   </button>
                 )}
                 <button
@@ -218,4 +218,4 @@ const BuyerDetails = () => {
   );
 };
 
-export default BuyerDetails;
+export default AdminDetails;

@@ -1,21 +1,35 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
+import { useEffect, useState, useCallback } from "react";
+import axios from "axios";
+import { useSession } from "next-auth/react";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
 import { FaUserCircle } from "react-icons/fa";
 import UserManagementStatusBadge from "../../UserManagementStatusBadge";
 import { userManagementStore, UserType } from "@/store/userManagementStore";
 import { formatDate } from "@/utils/formatTime";
-import axios from "axios";
-import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
 
-export default function BuyersTable() {
+interface BuyersTableProps {
+  currentPage: number;
+  onTotalPagesChange: (totalPages: number) => void;
+}
+
+interface ApiResponse {
+  data: UserType[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
+}
+
+export default function BuyersTable({ currentPage, onTotalPagesChange }: BuyersTableProps) {
   const { openModal } = userManagementStore();
   const { data: session, status } = useSession();
 
-  const [user, setUser] = useState<UserType[]>([]);
+  const [users, setUsers] = useState<UserType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,88 +37,75 @@ export default function BuyersTable() {
     openModal("openBuyer", user);
   };
 
-  useEffect(() => {
-    // Wait until NextAuth session is loaded
-    if (status === "loading") return;
+  // ←←← THIS IS THE KEY FIX
+  const stableCallback = useCallback(onTotalPagesChange, []); // never changes
 
-    const fetchUsers = async () => {
+  useEffect(() => {
+    if (status === "loading" || !session?.accessToken) return;
+
+    const fetchBuyers = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // If no session or token → user is not logged in
-        if (!session?.accessToken) {
-          setError("No valid session found. Please login again.");
-          setLoading(false);
-          return;
-        }
-
-        const response = await axios.get(
-          "https://one-universe-de5673cf0d65.herokuapp.com/api/v1/admin/buyers",
+        const response = await axios.get<ApiResponse>(
+          `https://one-universe-de5673cf0d65.herokuapp.com/api/v1/admin/buyers?page=${currentPage}&limit=10`,
           {
-            headers: {
-              Authorization: `Bearer ${session.accessToken}`,
-            },
+            headers: { Authorization: `Bearer ${session.accessToken}` },
           }
         );
 
-        console.log("Fetched Users:", response.data.data);
-        setUser(response.data.data);
-      } catch (error: any) {
-        console.error("Error fetching users:", error);
+        setUsers(response.data.data);
 
-        if (error.response?.status === 401) {
-          setError(
-            "Authentication failed or session expired. Please login again."
-          );
-        } else {
-          setError("Failed to fetch users. Please try again later.");
+        // Only update total pages when it actually changes
+        if (response.data.pagination.pages !== undefined) {
+          stableCallback(response.data.pagination.pages);
         }
+      } catch (err: any) {
+        console.error(err);
+        setError("Failed to load buyers.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUsers();
-  }, [session, status]);
+    fetchBuyers();
+  }, [currentPage, session?.accessToken, status, stableCallback]);
+  //                                     ^^^^^^^^^^^^^^^^ stable dependency
 
-  // Show loader while waiting for token or API call
   if (loading || status === "loading") {
     return (
-      <div className="w-full flex items-center justify-center py-8">
-        <p className="text-gray-500">Loading users...</p>
+      <div className="w-full flex items-center justify-center py-12">
+        <p className="text-gray-500">Loading buyers...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="w-full flex items-center justify-center py-8">
-        <div className="text-center">
-          <p className="text-red-500 mb-2">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="text-blue-500 hover:underline"
-          >
-            Retry
-          </button>
-        </div>
+      <div className="w-full text-center py-12 text-red-500">
+        {error}
+        <button onClick={() => window.location.reload()} className="ml-4 text-blue-500 underline">
+          Retry
+        </button>
       </div>
     );
   }
 
+  if (users.length === 0) {
+    return <div className="w-full text-center py-12 text-gray-500">No buyers found.</div>;
+  }
+
   return (
-    <div className="w-full">
+    <>
       {/* Desktop Table */}
       <div className="hidden md:block overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-[#FFFCFC] text-[#646264] text-left border-b border-[#E5E5E5] h-[60px]">
             <tr>
-              <th className="py-3 px-4 font-medium">
-                <div className="flex items-center gap-2">
-                  <FaUserCircle size={18} />
-                  <p>Full Name</p>
-                </div>
+              <th className="py-3 px-4 font-medium flex items-center gap-2">
+                <FaUserCircle size={18} />
+                Full Name
               </th>
               <th className="py-3 px-4 font-medium">Email Address</th>
               <th className="py-3 px-4 font-medium">Phone Number</th>
@@ -113,25 +114,22 @@ export default function BuyersTable() {
               <th className="py-3 px-4 font-medium">Time</th>
             </tr>
           </thead>
-
           <tbody className="text-[#303237]">
-            {user.map((item) => (
+            {users.map((item) => (
               <tr
                 key={item.id}
-                className={cn(
-                  "border-t border-gray-100 hover:bg-gray-50 transition h-[60px] cursor-pointer"
-                )}
+                className="border-t border-gray-100 hover:bg-gray-50 transition h-[60px] cursor-pointer"
                 onClick={() => handleSelectUser(item)}
               >
-                <td className="py-3 px-4 gap-3">
+                <td className="py-3 px-4">
                   <div className="flex items-center gap-2">
                     <div className="relative size-6 rounded-full overflow-hidden bg-gray-200">
-                      {item.avatar ? (
-                        <Image
-                          src={item.avatar}
+                      {item.profilePicture ? (
+                        <img
+                          src={item.profilePicture}
                           alt={item.fullName}
-                          fill
-                          className="object-cover"
+                          className="w-full h-full object-cover"
+                          loading="lazy"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
@@ -139,9 +137,7 @@ export default function BuyersTable() {
                         </div>
                       )}
                     </div>
-                    <p className="font-medium text-gray-900 hover:underline cursor-pointer">
-                      {item.fullName}
-                    </p>
+                    <p className="font-medium text-gray-900">{item.fullName}</p>
                   </div>
                 </td>
                 <td className="py-3 px-4">{item.email}</td>
@@ -150,14 +146,10 @@ export default function BuyersTable() {
                   <UserManagementStatusBadge status={item.status} />
                 </td>
                 <td className="py-3 px-4">
-                  {item.createdAt
-                    ? formatDate(new Date(item.createdAt)).date
-                    : "N/A"}
+                  {item.createdAt ? formatDate(new Date(item.createdAt)).date : "N/A"}
                 </td>
                 <td className="py-3 px-4">
-                  {item.createdAt
-                    ? formatDate(new Date(item.createdAt)).time
-                    : "N/A"}
+                  {item.createdAt ? formatDate(new Date(item.createdAt)).time : "N/A"}
                 </td>
               </tr>
             ))}
@@ -166,8 +158,8 @@ export default function BuyersTable() {
       </div>
 
       {/* Mobile Cards */}
-      <div className="grid gap-4 md:hidden">
-        {user.map((item) => (
+      <div className="grid gap-4 md:hidden px-4 py-6">
+        {users.map((item) => (
           <div
             key={item.id}
             className="flex items-center justify-between border border-gray-200 rounded-2xl p-4 bg-white shadow-sm cursor-pointer"
@@ -175,33 +167,28 @@ export default function BuyersTable() {
           >
             <div className="flex items-center gap-3">
               <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200">
-                {item.avatar ? (
-                  <Image
-                    src={item.avatar}
+                {item.profilePicture ? (
+                  <img
+                    src={item.profilePicture}
                     alt={item.fullName}
-                    fill
-                    className="object-cover"
+                    className="w-full h-full object-cover"
+                    loading="lazy"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <FaUserCircle className="text-gray-400" size={40} />
-                  </div>
+                  <FaUserCircle className="text-gray-400" size={40} />
                 )}
               </div>
               <div>
                 <p className="font-semibold text-gray-900">{item.fullName}</p>
                 <p className="text-sm text-gray-500">
-                  {item.createdAt
-                    ? formatDate(new Date(item.createdAt)).date
-                    : "N/A"}
+                  {item.createdAt ? formatDate(new Date(item.createdAt)).date : "N/A"}
                 </p>
               </div>
             </div>
-
             <UserManagementStatusBadge status={item.status} />
           </div>
         ))}
       </div>
-    </div>
+    </>
   );
 }
