@@ -3,7 +3,6 @@ import { create } from "zustand";
 
 type ModalType = "openBuyer" | "openSeller" | "openAdmin" | null;
 
-// Keep your existing types...
 export type RoleType = {
   id: string;
   name: string;
@@ -102,16 +101,41 @@ export interface FullUserType {
   [key: string]: any;
 }
 
-// MAIN STORE — NOW WITH REFETCH!
+// Filter types
+export interface BuyerFilterState {
+  status?: "inactive" | "active" | "pending";
+  fromDate?: Date;
+  toDate?: Date;
+}
+
+export interface SellerFilterState {
+  status?: "active" | "inactive" | "pending";
+  verification?: "verified" | "unverified";
+  fromDate?: Date;
+  toDate?: Date;
+}
+
 interface UserManagementStore {
   modalType: ModalType;
   selectedUser: FullUserType | null;
+
+  // Search state
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+
+  // Filter state per tab
+  buyerFilters: BuyerFilterState;
+  sellerFilters: SellerFilterState;
+  setBuyerFilters: (filters: BuyerFilterState) => void;
+  setSellerFilters: (filters: SellerFilterState) => void;
+  clearBuyerFilters: () => void;
+  clearSellerFilters: () => void;
 
   // Modal actions
   openModal: (type: ModalType, user?: FullUserType) => void;
   closeModal: () => void;
 
-  // NEW: Refetch function for instant table update
+  // Refetch function for instant table update
   refetchUsers: (() => void) | null;
   setRefetchUsers: (fn: () => void) => void;
 }
@@ -119,6 +143,18 @@ interface UserManagementStore {
 export const userManagementStore = create<UserManagementStore>((set) => ({
   modalType: null,
   selectedUser: null,
+
+  // Search
+  searchQuery: "",
+  setSearchQuery: (query) => set({ searchQuery: query }),
+
+  // Filters
+  buyerFilters: {},
+  sellerFilters: {},
+  setBuyerFilters: (filters) => set({ buyerFilters: filters }),
+  setSellerFilters: (filters) => set({ sellerFilters: filters }),
+  clearBuyerFilters: () => set({ buyerFilters: {} }),
+  clearSellerFilters: () => set({ sellerFilters: {} }),
 
   // Modal controls
   openModal: (type, user) => {
@@ -131,7 +167,7 @@ export const userManagementStore = create<UserManagementStore>((set) => ({
     set({ modalType: null, selectedUser: null });
   },
 
-  // Refetch users after success (deactivate, warning, etc.)
+  // Refetch users after success
   refetchUsers: null,
   setRefetchUsers: (fn) => set({ refetchUsers: fn }),
 }));

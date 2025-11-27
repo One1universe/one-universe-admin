@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { useSession } from "next-auth/react";
 import getBaseUrl from "@/services/baseUrl";
-import useToastStore from "@/store/useToastStore"; // ← FIXED: Full correct import
+import useToastStore from "@/store/useToastStore";
 import { userManagementStore } from "@/store/userManagementStore";
 
 import {
@@ -12,6 +12,7 @@ import {
   ReactivateModal,
   DeactivateModal,
 } from "./modals/UserActionModals";
+import UserHistoryModal from "./modals/UserHistoryModal";
 
 interface UserAdminActionsProps {
   userId: string;
@@ -19,6 +20,7 @@ interface UserAdminActionsProps {
   userEmail: string;
   isActive: boolean;
   onSuccess?: () => void;
+  showHistoryButton?: boolean; // Optional: control visibility of history button
 }
 
 export default function UserAdminActions({
@@ -27,15 +29,17 @@ export default function UserAdminActions({
   userEmail,
   isActive,
   onSuccess,
+  showHistoryButton = true,
 }: UserAdminActionsProps) {
   const { data: session } = useSession();
   const baseUrl = getBaseUrl();
-  const { showToast } = useToastStore(); // ← Now properly imported and used
+  const { showToast } = useToastStore();
   const { refetchUsers } = userManagementStore();
 
   const [showWarning, setShowWarning] = useState(false);
   const [showDeactivate, setShowDeactivate] = useState(false);
   const [showReactivate, setShowReactivate] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [warningMessage, setWarningMessage] = useState("");
   const [loadingWarning, setLoadingWarning] = useState(false);
   const [loadingToggle, setLoadingToggle] = useState(false);
@@ -123,6 +127,16 @@ export default function UserAdminActions({
     <>
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-4 justify-end px-5 md:pr-8">
+        {/* View History Button - Conditionally rendered */}
+        {showHistoryButton && (
+          <button
+            onClick={() => setShowHistory(true)}
+            className="bg-gradient-to-r from-teal-600 to-cyan-700 px-6 py-1.5 rounded-[36px] text-white text-sm font-medium hover:from-teal-700 hover:to-cyan-800 transition"
+          >
+            View History
+          </button>
+        )}
+
         {isActive ? (
           <button
             onClick={() => setShowDeactivate(true)}
@@ -177,6 +191,14 @@ export default function UserAdminActions({
         onClose={() => setShowReactivate(false)}
         onConfirm={handleToggleActivation}
         loading={loadingToggle}
+        userName={userName}
+      />
+
+      {/* History Modal */}
+      <UserHistoryModal
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+        userId={userId}
         userName={userName}
       />
     </>

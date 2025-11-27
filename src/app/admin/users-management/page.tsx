@@ -15,7 +15,6 @@ import { userManagementStore } from "@/store/userManagementStore";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
-// Reusable Pagination Component
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
@@ -59,11 +58,22 @@ const Pagination = ({ currentPage, totalPages, onPageChange }: PaginationProps) 
 };
 
 const UsersManagement = () => {
-  const { modalType, setRefetchUsers } = userManagementStore();
+  const { 
+    modalType, 
+    setRefetchUsers, 
+    searchQuery, 
+    setSearchQuery,
+    buyerFilters,
+    sellerFilters,
+    setBuyerFilters,
+    setSellerFilters,
+    clearBuyerFilters,
+    clearSellerFilters
+  } = userManagementStore();
+  
   const [showFilter, setShowFilter] = useState(false);
   const [activeTab, setActiveTab] = useState<"Buyers" | "Sellers" | "Admin Users">("Buyers");
 
-  // Pagination state per tab
   const [pagination, setPagination] = useState({
     Buyers: { current: 1, total: 1 },
     Sellers: { current: 1, total: 1 },
@@ -82,18 +92,19 @@ const UsersManagement = () => {
 
   const filterRef = useRef<HTMLDivElement>(null);
 
-  // THIS IS THE MAGIC: Give the store a way to refresh all tables instantly
+  // Set up refetch function
   useEffect(() => {
     const refreshCurrentTable = () => {
       setPagination(prev => ({
         ...prev,
-        [activeTab]: { ...prev[activeTab] } // triggers re-render
+        [activeTab]: { ...prev[activeTab] }
       }));
     };
 
     setRefetchUsers(() => refreshCurrentTable);
   }, [activeTab, setRefetchUsers]);
 
+  // Close filter on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
@@ -104,12 +115,36 @@ const UsersManagement = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Reset to page 1 when search or filters change
+  useEffect(() => {
+    setPagination(prev => ({
+      ...prev,
+      [activeTab]: { ...prev[activeTab], current: 1 }
+    }));
+  }, [searchQuery, buyerFilters, sellerFilters, activeTab]);
+
+  // Clear search and filters when switching tabs
+  const handleTabChange = (value: string) => {
+    const newTab = value as "Buyers" | "Sellers" | "Admin Users";
+    setActiveTab(newTab);
+    setSearchQuery("");
+    setShowFilter(false);
+  };
+
+  const hasActiveFilters = () => {
+    if (activeTab === "Buyers") {
+      return Object.keys(buyerFilters).length > 0;
+    }
+    if (activeTab === "Sellers") {
+      return Object.keys(sellerFilters).length > 0;
+    }
+    return false;
+  };
+
   return (
     <Tabs
       value={activeTab}
-      onValueChange={(val) => {
-        setActiveTab(val as typeof activeTab);
-      }}
+      onValueChange={handleTabChange}
       className="flex flex-col gap-[16px]"
     >
       {/* Header */}
@@ -146,37 +181,57 @@ const UsersManagement = () => {
                 <input
                   type="text"
                   placeholder="Search by name, email, service, or phone..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full md:w-96 h-11 pl-12 pr-4 rounded-lg border border-[#B7B6B7] outline-none text-sm placeholder:text-[#6B6969]"
                 />
                 <Search size={18} className="absolute left-4 top-3.5 text-[#6B6969]" />
               </div>
 
-              <button
-                onClick={() => setShowFilter(!showFilter)}
-                className="flex items-center gap-2 h-11 px-4 border border-[#B7B6B7] rounded-lg hover:bg-gray-50 transition"
-              >
-                <ListFilter size={18} />
-                <span className="hidden md:inline text-[#171417] font-medium">Filter</span>
-              </button>
+              {activeTab !== "Admin Users" && (
+                <button
+                  onClick={() => setShowFilter(!showFilter)}
+                  className={`flex items-center gap-2 h-11 px-4 border rounded-lg transition ${
+                    hasActiveFilters() 
+                      ? "border-[#04171F] bg-[#04171F] text-white" 
+                      : "border-[#B7B6B7] hover:bg-gray-50"
+                  }`}
+                >
+                  <ListFilter size={18} />
+                  <span className="hidden md:inline font-medium">
+                    {hasActiveFilters() ? "Filtered" : "Filter"}
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         </div>
 
         {/* Filters */}
         {activeTab === "Buyers" && showFilter && (
-          <div ref={filterRef} className="mt-6 px-6">
-            <BuyerFilters onApplyFilter={() => console.log("Applied")} />
+          <div ref={filterRef} className="mt-6 px-6 relative">
+            <BuyerFilters 
+              onApplyFilter={(filters) => {
+                setBuyerFilters(filters);
+                setShowFilter(false);
+              }} 
+            />
           </div>
         )}
 
         {activeTab === "Sellers" && showFilter && (
-          <div ref={filterRef} className="mt-6 px-6">
-            <SellerFilters onApplyFilter={() => console.log("Applied")} />
+          <div ref={filterRef} className="mt-6 px-6 relative">
+            <SellerFilters 
+              onApplyFilter={(filters) => {
+                setSellerFilters(filters);
+                setShowFilter(false);
+              }} 
+            />
           </div>
         )}
       </div>
 
-      {/* Tables with Real Server-Side Pagination */}
+      {/* Tables */}
       <div className="px-4 md:px-6">
         <TabsContent value="Buyers" className="mt-0">
           <div className="bg-white rounded-2xl border border-[#E8E3E3] overflow-hidden shadow-sm">

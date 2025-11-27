@@ -1,30 +1,36 @@
 "use client";
 import { ChevronUp, X, Calendar, Check } from "lucide-react";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { userManagementStore, BuyerFilterState } from "@/store/userManagementStore";
 
 interface BuyerFiltersProps {
-  onApplyFilter: (filters: {
-    status?: "inactive" | "active" | "pending";
-    fromDate?: Date;
-    toDate?: Date;
-  }) => void;
+  onApplyFilter: (filters: BuyerFilterState) => void;
 }
 
 const BuyerFilters: React.FC<BuyerFiltersProps> = ({ onApplyFilter }) => {
+  const { buyerFilters, clearBuyerFilters } = userManagementStore();
+  
   const [accountStatusOpen, setAccountStatusOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<
     "inactive" | "active" | "pending" | undefined
-  >(undefined);
+  >(buyerFilters.status);
 
-  const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
-  const [toDate, setToDate] = useState<Date | undefined>(undefined);
+  const [fromDate, setFromDate] = useState<Date | undefined>(buyerFilters.fromDate);
+  const [toDate, setToDate] = useState<Date | undefined>(buyerFilters.toDate);
+
+  // Sync with store when filters change externally
+  useEffect(() => {
+    setSelectedStatus(buyerFilters.status);
+    setFromDate(buyerFilters.fromDate);
+    setToDate(buyerFilters.toDate);
+  }, [buyerFilters]);
 
   const optionsMap = [
     { label: "Active", value: "active" as const },
     { label: "Inactive", value: "inactive" as const },
-    { label: "pending", value: "pending" as const },
+    { label: "Pending", value: "pending" as const },
   ];
 
   const handleStatusSelect = (
@@ -39,6 +45,13 @@ const BuyerFilters: React.FC<BuyerFiltersProps> = ({ onApplyFilter }) => {
     if (toDate && date && toDate < date) {
       setToDate(undefined);
     }
+  };
+
+  const handleClearFilter = () => {
+    setFromDate(undefined);
+    setToDate(undefined);
+    setSelectedStatus(undefined);
+    clearBuyerFilters();
   };
 
   const CustomInput = React.forwardRef<
@@ -60,7 +73,6 @@ const BuyerFilters: React.FC<BuyerFiltersProps> = ({ onApplyFilter }) => {
 
   CustomInput.displayName = "CustomInput";
 
-  // Button is disabled if no filter is selected
   const isButtonDisabled = !selectedStatus && !fromDate && !toDate;
 
   return (
@@ -147,17 +159,13 @@ const BuyerFilters: React.FC<BuyerFiltersProps> = ({ onApplyFilter }) => {
           display: none;
         }
       `}</style>
-      <section className="w-[476px] h-[540px] bg-white px-6 py-8 rounded-2xl flex flex-col gap-6 absolute right-0 z-50">
+      <section className="w-[476px] bg-white px-6 py-8 rounded-2xl flex flex-col gap-6 absolute right-0 z-50 shadow-lg border border-[#E8E3E3]">
         <div className="flex items-center justify-between border-b border-[#E8E3E3] pb-3">
           <h3 className="text-[#171417] text-[1.25rem] font-bold">Filter</h3>
           <button
-            className="flex items-center gap-2 text-[#FB3748]"
+            className="flex items-center gap-2 text-[#FB3748] hover:text-[#d32f3e] transition"
             type="button"
-            onClick={() => {
-              setFromDate(undefined);
-              setToDate(undefined);
-              setSelectedStatus(undefined);
-            }}
+            onClick={handleClearFilter}
           >
             <X />
             <span>Clear Filter</span>

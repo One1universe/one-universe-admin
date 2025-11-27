@@ -28,18 +28,14 @@ interface ApiResponse {
 }
 
 export default function SellersTable({ currentPage, onTotalPagesChange }: SellersTableProps) {
-  const { openModal } = userManagementStore();
+  const { openModal, searchQuery, sellerFilters } = userManagementStore();
   const { data: session, status } = useSession();
 
   const [sellers, setSellers] = useState<UserType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Convert UserType to FullUserType when opening modal
   const handleSelectUser = (user: UserType) => {
-    console.log("🟦 handleSelectUser CALLED with user:", user);
-    
-    // Convert UserType to FullUserType
     const fullUser: FullUserType = {
       ...user,
       wallet: user.Wallet || null,
@@ -69,8 +65,33 @@ export default function SellersTable({ currentPage, onTotalPagesChange }: Seller
 
         const BASE_URL = getBaseUrl();
 
+        // Build query parameters
+        const params = new URLSearchParams({
+          page: currentPage.toString(),
+          limit: "10",
+        });
+
+        // Add search query
+        if (searchQuery) {
+          params.append("search", searchQuery);
+        }
+
+        // Add filters
+        if (sellerFilters.status) {
+          params.append("status", sellerFilters.status);
+        }
+        if (sellerFilters.verification) {
+          params.append("verification", sellerFilters.verification);
+        }
+        if (sellerFilters.fromDate) {
+          params.append("fromDate", sellerFilters.fromDate.toISOString());
+        }
+        if (sellerFilters.toDate) {
+          params.append("toDate", sellerFilters.toDate.toISOString());
+        }
+
         const response = await axios.get<ApiResponse>(
-          `${BASE_URL}/admin/sellers?page=${currentPage}&limit=10`,
+          `${BASE_URL}/admin/sellers?${params.toString()}`,
           {
             headers: {
               Authorization: `Bearer ${session.accessToken}`,
@@ -96,7 +117,7 @@ export default function SellersTable({ currentPage, onTotalPagesChange }: Seller
     };
 
     fetchSellers();
-  }, [currentPage, session?.accessToken, status, stableTotalPagesCallback]);
+  }, [currentPage, session?.accessToken, status, stableTotalPagesCallback, searchQuery, sellerFilters]);
 
   if (status === "loading" || !session?.accessToken) {
     return (
@@ -128,7 +149,9 @@ export default function SellersTable({ currentPage, onTotalPagesChange }: Seller
   if (sellers.length === 0) {
     return (
       <div className="w-full text-center py-12 text-gray-500">
-        No sellers found.
+        {searchQuery || Object.keys(sellerFilters).length > 0 
+          ? "No sellers match your search or filters." 
+          : "No sellers found."}
       </div>
     );
   }

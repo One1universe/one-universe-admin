@@ -28,7 +28,7 @@ interface ApiResponse {
 }
 
 export default function AdminTable({ currentPage, onTotalPagesChange }: AdminTableProps) {
-  const { openModal } = userManagementStore();
+  const { openModal, searchQuery } = userManagementStore();
   const { data: session, status } = useSession();
 
   const [admins, setAdmins] = useState<UserType[]>([]);
@@ -39,11 +39,9 @@ export default function AdminTable({ currentPage, onTotalPagesChange }: AdminTab
     openModal("openAdmin", admin);
   };
 
-  // Stable callback to prevent unnecessary re-renders
   const stableCallback = useCallback(onTotalPagesChange, []);
 
   useEffect(() => {
-    // Wait for session to be ready
     if (status === "loading" || !session?.accessToken) return;
 
     const fetchAdmins = async () => {
@@ -53,8 +51,19 @@ export default function AdminTable({ currentPage, onTotalPagesChange }: AdminTab
 
         const token = session.accessToken;
 
+        // Build query parameters
+        const params = new URLSearchParams({
+          page: currentPage.toString(),
+          limit: "10",
+        });
+
+        // Add search query
+        if (searchQuery) {
+          params.append("search", searchQuery);
+        }
+
         const response = await axios.get<ApiResponse>(
-          `${BASE_URL}/admin/others?page=${currentPage}&limit=10`,
+          `${BASE_URL}/admin/others?${params.toString()}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -63,11 +72,9 @@ export default function AdminTable({ currentPage, onTotalPagesChange }: AdminTab
         const data = response.data.data || [];
         setAdmins(data);
 
-        // Only trust backend's pagination.pages
         if (response.data.pagination?.pages !== undefined) {
           stableCallback(response.data.pagination.pages);
         } else {
-          // Safe fallback: if backend doesn't send pagination, assume current page exists
           stableCallback(Math.max(currentPage, 1));
         }
       } catch (err: any) {
@@ -83,9 +90,8 @@ export default function AdminTable({ currentPage, onTotalPagesChange }: AdminTab
     };
 
     fetchAdmins();
-  }, [currentPage, session?.accessToken, status, stableCallback]);
+  }, [currentPage, session?.accessToken, status, stableCallback, searchQuery]);
 
-  // Loading or authenticating
   if (status === "loading" || !session?.accessToken) {
     return (
       <div className="w-full flex items-center justify-center py-12">
@@ -116,7 +122,9 @@ export default function AdminTable({ currentPage, onTotalPagesChange }: AdminTab
   if (admins.length === 0) {
     return (
       <div className="w-full text-center py-12 text-gray-500">
-        No admin users found.
+        {searchQuery 
+          ? "No admin users match your search." 
+          : "No admin users found."}
       </div>
     );
   }

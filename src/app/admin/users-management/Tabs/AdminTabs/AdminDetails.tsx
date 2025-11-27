@@ -6,13 +6,12 @@ import { X } from "lucide-react";
 import { userManagementStore } from "@/store/userManagementStore";
 import UserManagementStatusBadge from "../../UserManagementStatusBadge";
 import { useSession } from "next-auth/react";
-
-// NEW: Import the reusable admin actions
 import UserAdminActions from "../../components/UserAdminActions";
 
 const AdminDetails = () => {
   const { modalType, selectedUser, closeModal } = userManagementStore();
   const { data: session } = useSession();
+  const [showHistory, setShowHistory] = React.useState(false);
 
   if (!selectedUser || modalType !== "openAdmin") return null;
 
@@ -54,9 +53,6 @@ const AdminDetails = () => {
                   Admin Profile
                 </h2>
               </div>
-              <button className="bg-gradient-to-r from-teal-600 to-cyan-700 py-1.5 px-6 text-white rounded-[36px] font-medium text-sm">
-                View History
-              </button>
             </div>
 
             {/* Body */}
@@ -97,7 +93,7 @@ const AdminDetails = () => {
               </div>
             </div>
 
-            {/* REPLACED: All buttons + modals now come from UserAdminActions */}
+            {/* Admin Actions with View History Button */}
             <div className="bg-white pt-3 pb-12">
               <UserAdminActions
                 userId={selectedUser.id}
@@ -105,6 +101,7 @@ const AdminDetails = () => {
                 userEmail={selectedUser.email}
                 isActive={isActive}
                 onSuccess={closeModal}
+                showHistoryButton={true}
               />
             </div>
           </motion.div>

@@ -10,8 +10,8 @@ import { IoBusinessOutline } from "react-icons/io5";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 
-// Fixed import — adjust path if needed based on your folder structure
-import UserAdminActions from "../../components/UserAdminActions"; // or "../components/UserAdminActions" if it's one level up
+// Import the reusable component (now includes History button)
+import UserAdminActions from "../../components/UserAdminActions";
 
 const SellerDetails = () => {
   const { modalType, selectedUser, closeModal } = userManagementStore();
@@ -48,7 +48,7 @@ const SellerDetails = () => {
             exit={{ y: 100, opacity: 0 }}
             transition={{ type: "spring", damping: 20, stiffness: 120 }}
           >
-            {/* Header */}
+            {/* Header - Removed duplicate View History button */}
             <div className="flex rounded-t-2xl items-center justify-between bg-[#E8FBF7] pt-8 px-4 py-4">
               <div className="flex items-center gap-4">
                 <button
@@ -60,12 +60,6 @@ const SellerDetails = () => {
                 </button>
                 <h2 className="text-xl font-bold text-[#171417]">Seller Profile</h2>
               </div>
-              <button
-                className="[background:var(--primary-radial)] py-1.5 px-6 text-[#FDFDFD] rounded-[36px] font-medium text-sm"
-                type="button"
-              >
-                View History
-              </button>
             </div>
 
             {/* Loading State */}
@@ -266,14 +260,15 @@ const SellerDetails = () => {
                   </section>
                 </section>
 
-                {/* Reusable Admin Actions */}
+                {/* UserAdminActions now includes View History button + all modals */}
                 <div className="bg-white pt-3 pb-12">
-                <UserAdminActions
+                  <UserAdminActions
                     userId={selectedUser.id}
                     userName={displayUser.fullName}
-                    userEmail={displayUser.email}     // ← ADD THIS LINE
+                    userEmail={displayUser.email}
                     isActive={isActive}
                     onSuccess={closeModal}
+                    showHistoryButton={true}
                   />
                 </div>
               </div>

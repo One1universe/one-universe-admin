@@ -1,36 +1,42 @@
 "use client";
 import { ChevronUp, X, Calendar, Check } from "lucide-react";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { userManagementStore, SellerFilterState } from "@/store/userManagementStore";
 
 interface SellerFiltersProps {
-  onApplyFilter: (filters: {
-    status?: "active" | "inactive" | "pending";
-    verification?: "verified" | "unverified";
-    fromDate?: Date;
-    toDate?: Date;
-  }) => void;
+  onApplyFilter: (filters: SellerFilterState) => void;
 }
 
 const SellerFilters: React.FC<SellerFiltersProps> = ({ onApplyFilter }) => {
+  const { sellerFilters, clearSellerFilters } = userManagementStore();
+  
   const [accountStatusOpen, setAccountStatusOpen] = useState(false);
   const [verificationStatusOpen, setVerificationStatusOpen] = useState(false);
 
   const [selectedStatus, setSelectedStatus] = useState<
     "active" | "inactive" | "pending" | undefined
-  >(undefined);
+  >(sellerFilters.status);
   const [selectedVerificationStatus, setSelectedVerificationStatus] = useState<
     "verified" | "unverified" | undefined
-  >(undefined);
+  >(sellerFilters.verification);
 
-  const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
-  const [toDate, setToDate] = useState<Date | undefined>(undefined);
+  const [fromDate, setFromDate] = useState<Date | undefined>(sellerFilters.fromDate);
+  const [toDate, setToDate] = useState<Date | undefined>(sellerFilters.toDate);
+
+  // Sync with store when filters change externally
+  useEffect(() => {
+    setSelectedStatus(sellerFilters.status);
+    setSelectedVerificationStatus(sellerFilters.verification);
+    setFromDate(sellerFilters.fromDate);
+    setToDate(sellerFilters.toDate);
+  }, [sellerFilters]);
 
   const accountOptionsMap = [
     { label: "Active", value: "active" as const },
     { label: "Inactive", value: "inactive" as const },
-    { label: "pending", value: "pending" as const },
+    { label: "Pending", value: "pending" as const },
   ];
 
   const verificationOptionsMap = [
@@ -61,6 +67,14 @@ const SellerFilters: React.FC<SellerFiltersProps> = ({ onApplyFilter }) => {
     }
   };
 
+  const handleClearFilter = () => {
+    setFromDate(undefined);
+    setToDate(undefined);
+    setSelectedStatus(undefined);
+    setSelectedVerificationStatus(undefined);
+    clearSellerFilters();
+  };
+
   const CustomInput = React.forwardRef<
     HTMLButtonElement,
     { value?: string; onClick?: () => void; placeholder?: string }
@@ -80,8 +94,7 @@ const SellerFilters: React.FC<SellerFiltersProps> = ({ onApplyFilter }) => {
 
   CustomInput.displayName = "CustomInput";
 
-  // Button is disabled if no filter is selected
-  const isButtonDisabled = !selectedStatus && !fromDate && !toDate;
+  const isButtonDisabled = !selectedStatus && !selectedVerificationStatus && !fromDate && !toDate;
 
   return (
     <>
@@ -167,18 +180,13 @@ const SellerFilters: React.FC<SellerFiltersProps> = ({ onApplyFilter }) => {
           display: none;
         }
       `}</style>
-      <section className="w-[476px] h-[540px] bg-white px-6 py-8 rounded-2xl flex flex-col gap-6 absolute right-0 z-50">
+      <section className="w-[476px] bg-white px-6 py-8 rounded-2xl flex flex-col gap-6 absolute right-0 z-50 shadow-lg border border-[#E8E3E3]">
         <div className="flex items-center justify-between border-b border-[#E8E3E3] pb-3">
           <h3 className="text-[#171417] text-[1.25rem] font-bold">Filter</h3>
           <button
-            className="flex items-center gap-2 text-[#FB3748]"
+            className="flex items-center gap-2 text-[#FB3748] hover:text-[#d32f3e] transition"
             type="button"
-            onClick={() => {
-              setFromDate(undefined);
-              setToDate(undefined);
-              setSelectedStatus(undefined);
-              setSelectedVerificationStatus(undefined);
-            }}
+            onClick={handleClearFilter}
           >
             <X />
             <span>Clear Filter</span>
@@ -350,6 +358,7 @@ const SellerFilters: React.FC<SellerFiltersProps> = ({ onApplyFilter }) => {
             onClick={() =>
               onApplyFilter({
                 status: selectedStatus,
+                verification: selectedVerificationStatus,
                 fromDate,
                 toDate,
               })

@@ -8,7 +8,7 @@ import { userDetailsStore } from "@/store/userDetailsStore";
 import UserManagementStatusBadge from "../../UserManagementStatusBadge";
 import { useSession } from "next-auth/react";
 
-// NEW: Import the reusable component
+// Import the reusable component (now includes History button)
 import UserAdminActions from "../../components/UserAdminActions";
 
 const BuyerDetails = () => {
@@ -18,30 +18,28 @@ const BuyerDetails = () => {
 
   // Fetch full user details when modal opens
   useEffect(() => {
-
-   
     if (modalType === "openBuyer" && selectedUser?.id && session?.accessToken) {
       console.log("Fetching full buyer details for:", selectedUser.id);
       fetchUser(selectedUser.id, session.accessToken);
     }
   }, [modalType, selectedUser?.id, session?.accessToken, fetchUser]);
 
-   const getValidStatus = (
-  status: string | undefined
-): "ACTIVE" | "INACTIVE" | "PENDING" | "VERIFIED" | "UNVERIFIED" | "DEACTIVATED" => {
-  const validStatuses = [
-    "ACTIVE",
-    "INACTIVE",
-    "PENDING",
-    "VERIFIED",
-    "UNVERIFIED",
-    "DEACTIVATED",
-  ] as const;
+  const getValidStatus = (
+    status: string | undefined
+  ): "ACTIVE" | "INACTIVE" | "PENDING" | "VERIFIED" | "UNVERIFIED" | "DEACTIVATED" => {
+    const validStatuses = [
+      "ACTIVE",
+      "INACTIVE",
+      "PENDING",
+      "VERIFIED",
+      "UNVERIFIED",
+      "DEACTIVATED",
+    ] as const;
 
-  return status && validStatuses.includes(status as any)
-    ? (status as any)
-    : "PENDING";
-};
+    return status && validStatuses.includes(status as any)
+      ? (status as any)
+      : "PENDING";
+  };
 
   if (!selectedUser || modalType !== "openBuyer") return null;
 
@@ -67,7 +65,7 @@ const BuyerDetails = () => {
             exit={{ y: 100, opacity: 0 }}
             transition={{ type: "spring", damping: 20, stiffness: 120 }}
           >
-            {/* Header */}
+            {/* Header - Removed duplicate View History button */}
             <div className="flex rounded-t-2xl items-center justify-between bg-[#E8FBF7] pt-8 px-4 py-4">
               <div className="flex items-center gap-4">
                 <button
@@ -79,12 +77,6 @@ const BuyerDetails = () => {
                 </button>
                 <h2 className="text-xl font-bold text-[#171417]">Buyer Profile</h2>
               </div>
-              <button
-                className="[background:var(--primary-radial)] py-1.5 px-6 text-[#FDFDFD] rounded-[36px] font-medium text-sm"
-                type="button"
-              >
-                View History
-              </button>
             </div>
 
             {/* Loading State */}
@@ -136,7 +128,7 @@ const BuyerDetails = () => {
                         </div>
                         <div className="flex justify-between items-center">
                           <h3 className="text-[#171417] font-medium text-base">Account Status</h3>
-                         <UserManagementStatusBadge status={getValidStatus(displayUser.status)} />
+                          <UserManagementStatusBadge status={getValidStatus(displayUser.status)} />
                         </div>
                         <div className="flex justify-between">
                           <h3 className="text-[#171417] font-medium text-base">Wallet Balance</h3>
@@ -236,7 +228,7 @@ const BuyerDetails = () => {
                   </section>
                 </section>
 
-                {/* REPLACED: All action buttons + modals now come from UserAdminActions */}
+                {/* UserAdminActions now includes View History button + all modals */}
                 <div className="bg-white pt-3 pb-12">
                   <UserAdminActions
                     userId={selectedUser.id}
@@ -244,6 +236,7 @@ const BuyerDetails = () => {
                     userEmail={displayUser.email}
                     isActive={isActive}
                     onSuccess={closeModal}
+                    showHistoryButton={true}
                   />
                 </div>
               </div>

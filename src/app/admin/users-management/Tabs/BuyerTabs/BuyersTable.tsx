@@ -26,18 +26,14 @@ interface ApiResponse {
 }
 
 export default function BuyersTable({ currentPage, onTotalPagesChange }: BuyersTableProps) {
-  const { openModal } = userManagementStore();
+  const { openModal, searchQuery, buyerFilters } = userManagementStore();
   const { data: session, status } = useSession();
 
   const [users, setUsers] = useState<UserType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Convert UserType to FullUserType when opening modal
   const handleSelectUser = (user: UserType) => {
-    console.log("🟦 handleSelectUser CALLED with buyer:", user);
-    
-    // Convert UserType to FullUserType
     const fullUser: FullUserType = {
       ...user,
       wallet: user.Wallet || null,
@@ -67,8 +63,30 @@ export default function BuyersTable({ currentPage, onTotalPagesChange }: BuyersT
 
         const BASE_URL = getBaseUrl();
 
+        // Build query parameters
+        const params = new URLSearchParams({
+          page: currentPage.toString(),
+          limit: "10",
+        });
+
+        // Add search query
+        if (searchQuery) {
+          params.append("search", searchQuery);
+        }
+
+        // Add filters
+        if (buyerFilters.status) {
+          params.append("status", buyerFilters.status);
+        }
+        if (buyerFilters.fromDate) {
+          params.append("fromDate", buyerFilters.fromDate.toISOString());
+        }
+        if (buyerFilters.toDate) {
+          params.append("toDate", buyerFilters.toDate.toISOString());
+        }
+
         const response = await axios.get<ApiResponse>(
-          `${BASE_URL}/admin/buyers?page=${currentPage}&limit=10`,
+          `${BASE_URL}/admin/buyers?${params.toString()}`,
           {
             headers: { Authorization: `Bearer ${session.accessToken}` },
           }
@@ -92,7 +110,7 @@ export default function BuyersTable({ currentPage, onTotalPagesChange }: BuyersT
     };
 
     fetchBuyers();
-  }, [currentPage, session?.accessToken, status, stableCallback]);
+  }, [currentPage, session?.accessToken, status, stableCallback, searchQuery, buyerFilters]);
 
   if (status === "loading" || !session?.accessToken) {
     return (
@@ -124,7 +142,9 @@ export default function BuyersTable({ currentPage, onTotalPagesChange }: BuyersT
   if (users.length === 0) {
     return (
       <div className="w-full text-center py-12 text-gray-500">
-        No buyers found.
+        {searchQuery || Object.keys(buyerFilters).length > 0 
+          ? "No buyers match your search or filters." 
+          : "No buyers found."}
       </div>
     );
   }

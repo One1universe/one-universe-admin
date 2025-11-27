@@ -69,48 +69,65 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" }, 
         password: { label: "Password", type: "password" } 
       },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials.password) {
-          console.error("❌ Missing credentials");
-          return null;
-        }
+     async authorize(credentials) {
+  if (!credentials?.email || !credentials.password) {
+    console.error("❌ Missing credentials");
+    return null;
+  }
 
-        try {
-          console.log("🔐 Logging in:", credentials.email);
+  try {
+    console.log("🔐 Attempting login for:", credentials.email);
 
-          const res = await fetch(`${baseUrl}/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: credentials.email,
-              password: credentials.password,
-            }),
-          });
+    const res = await fetch(`${baseUrl}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: credentials.email,
+        password: credentials.password,
+      }),
+    });
 
-          const data = await res.json();
+    let data = null;
 
-          if (!res.ok) {
-            console.error("❌ Login failed:", data.message);
-            return null;
-          }
+    try {
+      data = await res.json();
+    } catch {
+      console.error("❌ Backend did not return JSON");
+      return null;
+    }
 
-          console.log("✅ Login successful for:", data.user?.email);
-          console.log("🔑 Tokens received:");
-          console.log("   - Access Token:", data.accessToken?.substring(0, 20) + "...");
-          console.log("   - Refresh Token:", data.refreshToken?.substring(0, 20) + "...");
+    console.log("📥 Login API response:", data);
 
-          return {
-            id: data.user?.id || "",
-            email: data.user?.email || "",
-            name: data.user?.fullName || "",
-            accessToken: data.accessToken,
-            refreshToken: data.refreshToken,
-          } as any;
-        } catch (err: any) {
-          console.error("❌ Authorization error:", err.message);
-          return null;
-        }
-      },
+    if (!res.ok) {
+      console.error("❌ Backend rejected login:", data.message);
+      return null;
+    }
+
+    if (!data.user?.id) {
+      console.error("❌ Backend missing user.id");
+      return null;
+    }
+
+    if (!data.accessToken || !data.refreshToken) {
+      console.error("❌ Backend missing tokens");
+      return null;
+    }
+
+    console.log("✅ Login successful:", data.user.email);
+
+    return {
+      id: data.user.id.toString(),
+      email: data.user.email,
+      name: data.user.fullName,
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+    };
+  } catch (err) {
+    console.error("❌ Authorization error:", err);
+    return null;
+  }
+}
+
     }),
   ],
 
