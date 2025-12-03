@@ -1,6 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
+import ReviewResponseModal from "./ReviewResponseModal";
+import EmptyState from "../../EmptyState"; // ← Our smart empty state
 
 type AppRating = {
   id: string;
@@ -12,6 +14,8 @@ type AppRating = {
 };
 
 const AppRatingsTable = () => {
+  const [selectedReview, setSelectedReview] = useState<AppRating | null>(null);
+
   const ratings: AppRating[] = [
     {
       id: "1",
@@ -66,161 +70,169 @@ const AppRatingsTable = () => {
     );
   };
 
+  const handleReply = (rating: AppRating) => {
+    setSelectedReview(rating);
+  };
+
   return (
     <>
-      {/* Desktop Table */}
-      <div className="hidden md:block w-full overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[1000px]">
-          {/* Header */}
-          <thead>
-            <tr className="bg-[#FFFCFC] border-b border-[#E5E5E5]">
-              <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base leading-[140%] text-[#646264]">
-                Username
-              </th>
-              <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base leading-[140%] text-[#646264]">
-                Platform
-              </th>
-              <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base leading-[140%] text-[#646264]">
-                Rating
-              </th>
-              <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base leading-[140%] text-[#646264]">
-                Date
-              </th>
-              <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base leading-[140%] text-[#646264]">
-                Feedback
-              </th>
-              <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base leading-[140%] text-[#646264] text-center">
-                Action
-              </th>
-            </tr>
-          </thead>
+      {/* === CONTENT WHEN THERE ARE RATINGS === */}
+      {ratings.length > 0 ? (
+        <>
+          {/* Desktop Table */}
+          <div className="hidden md:block w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[1000px]">
+              <thead>
+                <tr className="bg-[#FFFCFC] border-b border-[#E5E5E5]">
+                  <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264]">
+                    Username
+                  </th>
+                  <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264]">
+                    Platform
+                  </th>
+                  <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264]">
+                    Rating
+                  </th>
+                  <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264]">
+                    Date
+                  </th>
+                  <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264]">
+                    Feedback
+                  </th>
+                  <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264] text-center">
+                    Action
+                  </th>
+                </tr>
+              </thead>
 
-          <tbody>
-            {ratings.map((item) => (
-              <tr
-                key={item.id}
-                className="border-b border-[#E5E5E5] hover:bg-[#FAFAFA] transition-colors"
-              >
-                {/* Username */}
-                <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">
-                  {item.username}
-                </td>
+              <tbody>
+                {ratings.map((item) => (
+                  <tr
+                    key={item.id}
+                    className="border-b border-[#E5E5E5] hover:bg-[#FAFAFA] transition-colors"
+                  >
+                    <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">
+                      {item.username}
+                    </td>
 
-                {/* Platform */}
-                <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">
-                  {item.platform}
-                </td>
+                    <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">
+                      {item.platform}
+                    </td>
 
-                {/* Rating */}
-                <td className="py-[18px] px-[25px]">{renderStars(item.rating)}</td>
+                    <td className="py-[18px] px-[25px]">{renderStars(item.rating)}</td>
 
-                {/* Date */}
-                <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">
-                  {item.createdAt}
-                </td>
+                    <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">
+                      {item.createdAt}
+                    </td>
 
-                {/* Feedback */}
-                <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237] max-w-[400px] truncate">
-                  {item.review}
-                </td>
+                    <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237] max-w-[400px] truncate">
+                      {item.review}
+                    </td>
 
-                {/* Action: Reply Button + Three Dots */}
-                <td className="py-[18px] px-[25px]">
-                  <div className="flex items-center justify-center gap-3">
-                    {/* Reply Button */}
-                    <button
-                      onClick={() => console.log("Reply to", item.username)}
-                      className="px-4 py-2 rounded-lg text-white font-dm-sans font-medium text-sm leading-[140%] bg-gradient-to-br from-[#154751] to-[#04171F] hover:opacity-90 transition-opacity whitespace-nowrap"
-                    >
-                      Reply
-                    </button>
+                    <td className="py-[18px] px-[25px]">
+                      <div className="flex items-center justify-center gap-3">
+                        <button
+                          onClick={() => handleReply(item)}
+                          className="px-6 py-3 rounded-[36px] text-white font-dm-sans font-medium text-base bg-gradient-to-br from-[#154751] to-[#04171F] hover:opacity-90 transition-opacity whitespace-nowrap"
+                        >
+                          Reply
+                        </button>
 
-                    {/* Three Vertical Dots */}
-                    <button
-                      onClick={() => console.log("More actions for rating", item.id)}
-                      className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                      aria-label="More actions"
-                    >
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 20 20"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="text-[#303237]"
-                      >
-                        <circle cx="10" cy="5" r="2" fill="currentColor" />
-                        <circle cx="10" cy="10" r="2" fill="currentColor" />
-                        <circle cx="10" cy="15" r="2" fill="currentColor" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Mobile Card View */}
-      <div className="md:hidden space-y-4 p-4">
-        {ratings.map((item) => (
-          <div
-            key={item.id}
-            className="bg-white border border-[#E8E3E3] rounded-lg p-4 shadow-sm"
-          >
-            <div className="flex justify-between items-start mb-3">
-              <div className="flex-1">
-                <h3 className="font-dm-sans font-medium text-base text-[#303237] mb-1">
-                  {item.username}
-                </h3>
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="font-dm-sans text-sm text-[#454345]">
-                    {item.platform}
-                  </span>
-                  <span className="font-dm-sans text-sm text-[#454345]">
-                    {item.createdAt}
-                  </span>
-                </div>
-                {renderStars(item.rating)}
-              </div>
-              <button
-                onClick={() => console.log("More actions for rating", item.id)}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                aria-label="More actions"
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="text-[#303237]"
-                >
-                  <circle cx="10" cy="5" r="2" fill="currentColor" />
-                  <circle cx="10" cy="10" r="2" fill="currentColor" />
-                  <circle cx="10" cy="15" r="2" fill="currentColor" />
-                </svg>
-              </button>
-            </div>
-            <p className="font-dm-sans text-sm text-[#303237] mb-3">{item.review}</p>
-            <button
-              onClick={() => console.log("Reply to", item.username)}
-              className="w-full px-4 py-2 rounded-lg text-white font-dm-sans font-medium text-sm bg-gradient-to-br from-[#154751] to-[#04171F] hover:opacity-90 transition-opacity"
-            >
-              Reply
-            </button>
+                        <button
+                          onClick={() => console.log("More actions for rating", item.id)}
+                          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                          aria-label="More actions"
+                        >
+                          <svg
+                            width="20"
+                            height="20"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="text-[#303237]"
+                          >
+                            <circle cx="10" cy="5" r="2" fill="currentColor" />
+                            <circle cx="10" cy="10" r="2" fill="currentColor" />
+                            <circle cx="10" cy="15" r="2" fill="currentColor" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ))}
-      </div>
 
-      {/* Empty State */}
-      {ratings.length === 0 && (
-        <div className="py-24 text-center">
-          <p className="font-dm-sans text-base text-[#6B6969]">
-            No ratings yet. User feedback will appear here once submitted.
-          </p>
-        </div>
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-4 p-4">
+            {ratings.map((item) => (
+              <div
+                key={item.id}
+                className="bg-white border border-[#E8E3E3] rounded-lg p-4 shadow-sm"
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1">
+                    <h3 className="font-dm-sans font-medium text-base text-[#303237] mb-1">
+                      {item.username}
+                    </h3>
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="font-dm-sans text-sm text-[#454345]">
+                        {item.platform}
+                      </span>
+                      <span className="font-dm-sans text-sm text-[#454345]">
+                        {item.createdAt}
+                      </span>
+                    </div>
+                    {renderStars(item.rating)}
+                  </div>
+                  <button
+                    onClick={() => console.log("More actions for rating", item.id)}
+                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="text-[#303237]"
+                    >
+                      <circle cx="10" cy="5" r="2" fill="currentColor" />
+                      <circle cx="10" cy="10" r="2" fill="currentColor" />
+                      <circle cx="10" cy="15" r="2" fill="currentColor" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="font-dm-sans text-sm text-[#303237] mb-4">{item.review}</p>
+                <button
+                  onClick={() => handleReply(item)}
+                  className="w-full py-4 rounded-[36px] text-white font-dm-sans font-medium text-base bg-gradient-to-br from-[#154751] to-[#04171F] hover:opacity-90 transition-opacity"
+                >
+                  Reply
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        /* === EMPTY STATE FOR RATINGS === */
+        <EmptyState type="ratings" />
+      )}
+
+      {/* Review Response Modal */}
+      {selectedReview && (
+        <ReviewResponseModal
+          isOpen={true}
+          onClose={() => setSelectedReview(null)}
+          review={{
+            username: selectedReview.username,
+            userRole: selectedReview.platform,
+            rating: selectedReview.rating,
+            text: selectedReview.review,
+            date: selectedReview.createdAt,
+          }}
+        />
       )}
     </>
   );
