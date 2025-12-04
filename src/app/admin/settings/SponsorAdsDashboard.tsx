@@ -1,37 +1,63 @@
-// components/ads/SponsorAdsDashboard.tsx
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Search, Filter } from "lucide-react";
 import SettingsEmptyState from "./SettingsEmptyState";
+import SponsorAdsTable from "./Tabs/ads/SponsorAdsTable";
+import UpdatePlanPricingModal from "./Tabs/pricing/UpdatePricingModal";
 
-// Reuse your existing table — just import it
-import SponsorAdsTable from "./Tabs/ads/SponsorAdsTable"; // We'll create this next
+// 🔥 This must match the modal's Plan interface
+interface Plan {
+  id: string;
+  name: string;
+  description: string;
+  monthlyPrice: number;
+  yearlyPrice: number;
+  iconColor?: string;
+}
 
 const SponsorAdsDashboard = () => {
-  const hasAds = true; // Set to false to see empty state
+  const hasAds = true;
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // ✅ Correctly typed plan object
+  const plan: Plan = {
+    id: "sponsor-ads-price",
+    name: "Sponsored Ads Price",
+    description: "Price for sponsored ads placements",
+    monthlyPrice: 15000,
+    yearlyPrice: 150000,
+    iconColor: "#154751",
+  };
+
+  const handleUpdatePrice = (planId: string, newMonthlyPrice: number, newYearlyPrice: number) => {
+    console.log("UPDATED PLAN:", planId, newMonthlyPrice, newYearlyPrice);
+    // connect to backend PATCH request here
+  };
 
   return (
     <div className="w-full space-y-8 px-5 md:px-0">
-
-      {/* === HEADER: Title + Update Price Button === */}
+      {/* === HEADER === */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <h2 className="font-dm-sans font-medium text-xl text-[#171417]">
           Sponsored Ad Subscribers
         </h2>
 
-        <button className="flex items-center justify-center gap-2 px-6 py-4 rounded-3xl bg-gradient-to-r from-[#154751] to-[#04171F] hover:opacity-90 transition-opacity">
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center justify-center gap-2 px-6 py-4 rounded-3xl bg-gradient-to-r from-[#154751] to-[#04171F] hover:opacity-90 transition-opacity"
+        >
           <span className="font-dm-sans font-medium text-base text-white">
             Update Sponsor Price
           </span>
         </button>
       </div>
 
-      {/* === MAIN CARD WITH SEARCH + TABLE === */}
+      {/* MAIN CARD */}
       <div className="bg-white rounded-t-3xl overflow-hidden shadow-sm">
-        {/* Search & Filter Bar */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-6 pt-4 pb-5 border-b border-[#D0D0D0]">
-          <div className="flex items-center gap-3 border border-[#B7B6B7] rounded-lg px-4 py-3 w-full md:w-96">
+          <div className="flex items-center gap-3 border border-[#B7B7B7] rounded-lg px-4 py-3 w-full md:w-96">
             <Search size={20} className="text-[#7B7B7B]" />
             <input
               type="text"
@@ -46,7 +72,6 @@ const SponsorAdsDashboard = () => {
           </button>
         </div>
 
-        {/* === TABLE OR EMPTY STATE === */}
         {hasAds ? (
           <div className="overflow-x-auto">
             <SponsorAdsTable />
@@ -57,6 +82,14 @@ const SponsorAdsDashboard = () => {
           </div>
         )}
       </div>
+
+      {/* ⭐ THE MODAL */}
+      <UpdatePlanPricingModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        plan={plan}
+        onUpdate={handleUpdatePrice}
+      />
     </div>
   );
 };
