@@ -1,12 +1,15 @@
+// app/admin/settings/SponsorAdsDashboard.tsx
 "use client";
 
 import React, { useState } from "react";
-import { Search, Filter } from "lucide-react";
+import { Search } from "lucide-react";
 import SettingsEmptyState from "./SettingsEmptyState";
 import SponsorAdsTable from "./Tabs/ads/SponsorAdsTable";
 import UpdatePlanPricingModal from "./Tabs/pricing/UpdatePricingModal";
 
-// 🔥 This must match the modal's Plan interface
+// Fixed: Use the @ alias
+import SponsorAdsFilter, { SponsorAdsFilterState } from "./components/filters/SponsorAdsFilter";
+
 interface Plan {
   id: string;
   name: string;
@@ -18,10 +21,15 @@ interface Plan {
 
 const SponsorAdsDashboard = () => {
   const hasAds = true;
-
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [filters, setFilters] = useState<SponsorAdsFilterState>({
+    paymentStatus: null,
+    planType: null,
+    subscriptionStatus: null,
+    fromDate: null,
+    toDate: null,
+  });
 
-  // ✅ Correctly typed plan object
   const plan: Plan = {
     id: "sponsor-ads-price",
     name: "Sponsored Ads Price",
@@ -33,12 +41,10 @@ const SponsorAdsDashboard = () => {
 
   const handleUpdatePrice = (planId: string, newMonthlyPrice: number, newYearlyPrice: number) => {
     console.log("UPDATED PLAN:", planId, newMonthlyPrice, newYearlyPrice);
-    // connect to backend PATCH request here
   };
 
   return (
     <div className="w-full space-y-8 px-5 md:px-0">
-      {/* === HEADER === */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <h2 className="font-dm-sans font-medium text-xl text-[#171417]">
           Sponsored Ad Subscribers
@@ -46,15 +52,12 @@ const SponsorAdsDashboard = () => {
 
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center justify-center gap-2 px-6 py-4 rounded-3xl bg-gradient-to-r from-[#154751] to-[#04171F] hover:opacity-90 transition-opacity"
+          className="flex items-center justify-center gap-2 px-6 py-4 rounded-3xl bg-gradient-to-r from-[#154751] to-[#04171F] hover:opacity-90 transition-opacity text-white font-dm-sans font-medium text-base"
         >
-          <span className="font-dm-sans font-medium text-base text-white">
-            Update Sponsor Price
-          </span>
+          Update Sponsor Price
         </button>
       </div>
 
-      {/* MAIN CARD */}
       <div className="bg-white rounded-t-3xl overflow-hidden shadow-sm">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-6 pt-4 pb-5 border-b border-[#D0D0D0]">
           <div className="flex items-center gap-3 border border-[#B7B7B7] rounded-lg px-4 py-3 w-full md:w-96">
@@ -66,15 +69,21 @@ const SponsorAdsDashboard = () => {
             />
           </div>
 
-          <button className="flex items-center gap-2 px-4 py-3 border border-[#B5B1B1] rounded-lg bg-white hover:bg-gray-50 transition">
-            <Filter size={16} />
-            <span className="font-dm-sans text-base text-[#171417]">Filter</span>
-          </button>
+          <SponsorAdsFilter
+            onApply={(newFilters) => setFilters(newFilters)}
+            onClear={() => setFilters({
+              paymentStatus: null,
+              planType: null,
+              subscriptionStatus: null,
+              fromDate: null,
+              toDate: null,
+            })}
+          />
         </div>
 
         {hasAds ? (
           <div className="overflow-x-auto">
-            <SponsorAdsTable />
+            <SponsorAdsTable filters={filters} />
           </div>
         ) : (
           <div className="py-20">
@@ -83,7 +92,6 @@ const SponsorAdsDashboard = () => {
         )}
       </div>
 
-      {/* ⭐ THE MODAL */}
       <UpdatePlanPricingModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

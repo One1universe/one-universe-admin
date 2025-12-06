@@ -1,11 +1,9 @@
-// app/admin/settings/SubscriptionDashboard.tsx
+// app/admin/settings/ReferralDashboard.tsx
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
 import { Search, Filter, TrendingUp, TrendingDown, Check } from "lucide-react";
-import SubscriptionTable from "./Tabs/subscription/SubscriptionTable";
-import SettingsEmptyState from "./SettingsEmptyState";
-import UpdatePlanPricingModal from "./Tabs/pricing/UpdatePricingModal";
+import SettingsEmptyState from "./ReferralEmptyState";
 
 interface Plan {
   id: string;
@@ -16,8 +14,8 @@ interface Plan {
   iconColor?: string;
 }
 
-const SubscriptionDashboard = () => {
-  const hasSubscriptions = true;
+const ReferralDashboard = () => {
+  const hasReferrals = false;
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Filter State
@@ -26,9 +24,9 @@ const SubscriptionDashboard = () => {
   const filterRef = useRef<HTMLDivElement>(null);
 
   const plan: Plan = {
-    id: "premium-subscription",
-    name: "Premium Subscription Price",
-    description: "Price for premium subscriptions",
+    id: "premium-Referral",
+    name: "Premium Referral Price",
+    description: "Price for premium Referrals",
     monthlyPrice: 5000,
     yearlyPrice: 50000,
     iconColor: "#154751",
@@ -52,83 +50,150 @@ const SubscriptionDashboard = () => {
   return (
     <div className="w-full space-y-8 px-5 md:px-0">
 
-      {/* === 3 STAT CARDS === */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Active Subscriptions */}
+      {/* === HEADER SECTION === */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col gap-2">
+          <h1 className="font-dm-sans font-bold text-2xl leading-[120%] text-[#171417]">
+            Referral Performance 
+          </h1>
+          <p className="font-dm-sans text-base leading-[140%] text-[#6B6969]">
+            Create and manage incentives to boost platform activity
+          </p>
+        </div>
+
+        {/* Settings Button */}
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center justify-center gap-2 h-[48px] rounded-[20px] px-6 py-4 whitespace-nowrap"
+          style={{
+            background: 'radial-gradient(50% 50% at 50% 50%, #154751 37%, #04171F 100%)'
+          }}
+        >
+          {/* Plus icon */}
+          <svg 
+            width="16" 
+            height="16" 
+            viewBox="0 0 16 16" 
+            fill="none" 
+            xmlns="http://www.w3.org/2000/svg"
+            className="flex-shrink-0"
+          >
+            <path 
+              d="M8 3.33334V12.6667M3.33333 8H12.6667" 
+              stroke="#FFFFFF" 
+              strokeWidth="1.5" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            />
+          </svg>
+          
+          {/* Button text */}
+          <span 
+            className="font-dm-sans font-medium text-base leading-[140%]"
+            style={{ color: '#FDFDFD' }}
+          >
+            Referral Settings
+          </span>
+        </button>
+      </div>
+
+      {/* === 4 STAT CARDS === */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Total Referrals */}
         <div className="bg-white border border-[#E8E3E3] rounded-lg px-4 pt-3 pb-4 h-[123px] flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-5 h-5 bg-[#00AB47] rounded flex items-center justify-center">
-                <div className="w-3 h-3 bg-white rounded-sm" />
+              <div className="w-5 h-5 bg-[#3621EE] rounded flex items-center justify-center p-1">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 0L7.854 4.146L12 6L7.854 7.854L6 12L4.146 7.854L0 6L4.146 4.146L6 0Z" fill="#FFFFFF"/>
+                </svg>
               </div>
               <span className="font-dm-sans text-base font-medium text-[#171417]">
-                Active Subscriptions
+                Total Referrals
               </span>
             </div>
             <TrendingUp size={16} className="text-[#00AB47]" />
           </div>
-          <div>
+          <div className="border-t border-[#E8E3E3] pt-2">
             <p className="font-dm-sans font-bold text-2xl text-[#171417]">4</p>
             <div className="font-dm-sans text-xs text-[#171417] mt-1 flex items-center gap-1">
-              <div className="w-3 h-3 bg-[#D7FFE9] rounded-sm flex items-center justify-center">
-                <TrendingUp size={10} className="text-[#1FC16B]" />
-              </div>
+              <TrendingUp size={10} className="text-[#1FC16B]" />
               <span>+21% from last month</span>
             </div>
           </div>
         </div>
 
-        {/* Monthly Revenue */}
+         {/* Successful Referrals  */}
         <div className="bg-white border border-[#E8E3E3] rounded-lg px-4 pt-3 pb-4 h-[123px] flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="font-dm-sans text-base font-medium text-[#171417]">
-              Monthly Revenue
-            </span>
-            <TrendingUp size={16} className="text-[#1FC16B]" />
-          </div>
-          <div>
-            <p className="font-dm-sans font-bold text-2xl text-[#171417]">₦248,000</p>
-            <div className="font-dm-sans text-xs text-[#171417] mt-1 flex items-center gap-1">
-              <div className="w-3 h-3 bg-[#D7FFE9] rounded-sm flex items-center justify-center">
-                <TrendingUp size={10} className="text-[#1FC16B]" />
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 bg-[#FE4B01] rounded flex items-center justify-center p-1">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 0L7.854 4.146L12 6L7.854 7.854L6 12L4.146 7.854L0 6L4.146 4.146L6 0Z" fill="#FFFFFF"/>
+                </svg>
               </div>
-              <span>+21% from last month</span>
+              <span className="font-dm-sans text-base font-medium text-[#171417]">
+                Successful Referrals
+              </span>
             </div>
-          </div>
-        </div>
-
-        {/* Pending Renewals */}
-        <div className="bg-white border border-[#E8E3E3] rounded-lg px-4 pt-3 pb-4 h-[123px] flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="font-dm-sans text-base font-medium text-[#171417]">
-              Pending Renewals
-            </span>
             <TrendingDown size={16} className="text-[#D84040]" />
           </div>
-          <div>
-            <p className="font-dm-sans font-bold text-2xl text-[#171417]">1</p>
+          <div className="border-t border-[#E8E3E3] pt-2">
+            <p className="font-dm-sans font-bold text-2xl text-[#171417]">0</p>
             <div className="font-dm-sans text-xs text-[#D84040] mt-1 flex items-center gap-1">
-              <div className="w-3 h-3 bg-[#E9BCB7] rounded-sm flex items-center justify-center">
-                <TrendingDown size={10} className="text-[#D84040]" />
-              </div>
+              <TrendingDown size={10} className="text-[#D84040]" />
               <span>-21% from last month</span>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* === TITLE + Update Button === */}
-      <div className="flex items-center justify-between">
-        <h2 className="font-dm-sans font-medium text-xl text-[#171417]">
-          Premium Ranking Subscribers
-        </h2>
+        {/* Reward paid */}
+        <div className="bg-white border border-[#E8E3E3] rounded-lg px-4 pt-3 pb-4 h-[123px] flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 bg-[#67A344] rounded flex items-center justify-center p-1">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 0L7.854 4.146L12 6L7.854 7.854L6 12L4.146 7.854L0 6L4.146 4.146L6 0Z" fill="#FFFFFF"/>
+                </svg>
+              </div>
+              <span className="font-dm-sans text-base font-medium text-[#171417]">
+                Reward Paid
+              </span>
+            </div>
+            <TrendingUp size={16} className="text-[#1FC16B]" />
+          </div>
+          <div className="border-t border-[#E8E3E3] pt-2">
+            <p className="font-dm-sans font-bold text-2xl text-[#171417]">₦248,000</p>
+            <div className="font-dm-sans text-xs text-[#171417] mt-1 flex items-center gap-1">
+              <TrendingUp size={10} className="text-[#1FC16B]" />
+              <span>+21% from last month</span>
+            </div>
+          </div>
+        </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center justify-center gap-2 px-6 py-4 rounded-[20px] text-white font-dm-sans font-medium text-[16px] bg-[radial-gradient(50%_50%_at_50%_50%,_#154751_37%,_#04171F_100%)] hover:opacity-90 transition-opacity"
-        >
-          Update Premium Price
-        </button>
+        {/* Current Reward Rate */}
+        <div className="bg-white border border-[#E8E3E3] rounded-lg px-4 pt-3 pb-4 h-[123px] flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 bg-[#CE1474] rounded flex items-center justify-center p-1">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 0L7.854 4.146L12 6L7.854 7.854L6 12L4.146 7.854L0 6L4.146 4.146L6 0Z" fill="#FFFFFF"/>
+                </svg>
+              </div>
+              <span className="font-dm-sans text-base font-medium text-[#171417]">
+                Current Reward Rate
+              </span>
+            </div>
+            <TrendingDown size={16} className="text-[#D84040]" />
+          </div>
+          <div className="border-t border-[#E8E3E3] pt-2">
+            <p className="font-dm-sans font-bold text-2xl text-[#171417]">0</p>
+            <div className="font-dm-sans text-xs text-[#D84040] mt-1 flex items-center gap-1">
+              <TrendingDown size={10} className="text-[#D84040]" />
+              <span>-21% from last month</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* === MAIN CONTAINER WITH SEARCH + FILTER === */}
@@ -139,7 +204,7 @@ const SubscriptionDashboard = () => {
             <Search size={20} className="text-[#7B7B7B]" />
             <input
               type="text"
-              placeholder="Search by name, email, or phone"
+              placeholder="Search by offer title, or trigger type"
               className="flex-1 outline-none font-inter text-base text-[#7B7B7B] placeholder-[#7B7B7B]"
             />
           </div>
@@ -206,9 +271,9 @@ const SubscriptionDashboard = () => {
         </div>
 
         {/* TABLE OR EMPTY STATE */}
-        {hasSubscriptions ? (
+        {hasReferrals ? (
           <div className="p-0">
-            <SubscriptionTable />
+            {/* <ReferralTable /> */}
           </div>
         ) : (
           <div className="py-20">
@@ -217,15 +282,8 @@ const SubscriptionDashboard = () => {
         )}
       </div>
 
-      {/* MODAL */}
-      <UpdatePlanPricingModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        plan={plan}
-        onUpdate={handleUpdatePrice}
-      />
     </div>
   );
 };
 
-export default SubscriptionDashboard;
+export default ReferralDashboard;
