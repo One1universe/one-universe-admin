@@ -4,6 +4,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Search, Filter, TrendingUp, TrendingDown, Check } from "lucide-react";
 import SettingsEmptyState from "./ReferralEmptyState";
+import ReferralTable from "./ReferralTable";
+import { Referral } from "@/types/Referral";
 
 interface Plan {
   id: string;
@@ -15,12 +17,13 @@ interface Plan {
 }
 
 const ReferralDashboard = () => {
-  const hasReferrals = false;
+  const [hasReferrals, setHasReferrals] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Filter State
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState<string[]>(["All"]);
+  const [searchQuery, setSearchQuery] = useState("");
   const filterRef = useRef<HTMLDivElement>(null);
 
   const plan: Plan = {
@@ -31,6 +34,72 @@ const ReferralDashboard = () => {
     yearlyPrice: 50000,
     iconColor: "#154751",
   };
+
+  // Sample referral data
+  const [referrals] = useState<Referral[]>([
+    {
+      id: "1",
+      referralId: "#REF001",
+      referrerName: "Wade Warren",
+      referredName: "Sarah Smith",
+      firstTransaction: "Completed",
+      signDate: "12 May 2025",
+      status: "Paid",
+      rewardEarned: true,
+    },
+    {
+      id: "2",
+      referralId: "#REF002",
+      referrerName: "Jane Cooper",
+      referredName: "Mike Jones",
+      firstTransaction: "Pending",
+      signDate: "11 May 2025",
+      status: "Processing",
+      rewardEarned: false,
+    },
+    {
+      id: "3",
+      referralId: "#REF003",
+      referrerName: "John Doe",
+      referredName: "Emily Davis",
+      firstTransaction: "Completed",
+      signDate: "10 May 2025",
+      status: "Paid",
+      rewardEarned: true,
+    },
+    {
+      id: "4",
+      referralId: "#REF004",
+      referrerName: "Robert Brown",
+      referredName: "Lisa Anderson",
+      firstTransaction: "Completed",
+      signDate: "09 May 2025",
+      status: "Pending",
+      rewardEarned: false,
+    },
+    {
+      id: "5",
+      referralId: "#REF005",
+      referrerName: "Mary Wilson",
+      referredName: "David Taylor",
+      firstTransaction: "Pending",
+      signDate: "08 May 2025",
+      status: "Processing",
+      rewardEarned: false,
+    },
+  ]);
+
+  // Filter referrals based on search and selected filters
+  const filteredReferrals = referrals.filter((referral) => {
+    const matchesSearch =
+      referral.referrerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      referral.referredName.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesFilter =
+      selectedFilters.includes("All") || selectedFilters.includes(referral.status);
+
+    return matchesSearch && matchesFilter;
+  });
 
   const handleUpdatePrice = (planId: string, newMonthlyPrice: number, newYearlyPrice: number) => {
     console.log("UPDATED PLAN:", planId, newMonthlyPrice, newYearlyPrice);
@@ -115,7 +184,7 @@ const ReferralDashboard = () => {
             <TrendingUp size={16} className="text-[#00AB47]" />
           </div>
           <div className="border-t border-[#E8E3E3] pt-2">
-            <p className="font-dm-sans font-bold text-2xl text-[#171417]">4</p>
+            <p className="font-dm-sans font-bold text-2xl text-[#171417]">5</p>
             <div className="font-dm-sans text-xs text-[#171417] mt-1 flex items-center gap-1">
               <TrendingUp size={10} className="text-[#1FC16B]" />
               <span>+21% from last month</span>
@@ -139,7 +208,7 @@ const ReferralDashboard = () => {
             <TrendingDown size={16} className="text-[#D84040]" />
           </div>
           <div className="border-t border-[#E8E3E3] pt-2">
-            <p className="font-dm-sans font-bold text-2xl text-[#171417]">0</p>
+            <p className="font-dm-sans font-bold text-2xl text-[#171417]">3</p>
             <div className="font-dm-sans text-xs text-[#D84040] mt-1 flex items-center gap-1">
               <TrendingDown size={10} className="text-[#D84040]" />
               <span>-21% from last month</span>
@@ -187,7 +256,7 @@ const ReferralDashboard = () => {
             <TrendingDown size={16} className="text-[#D84040]" />
           </div>
           <div className="border-t border-[#E8E3E3] pt-2">
-            <p className="font-dm-sans font-bold text-2xl text-[#171417]">0</p>
+            <p className="font-dm-sans font-bold text-2xl text-[#171417]">₦5,000</p>
             <div className="font-dm-sans text-xs text-[#D84040] mt-1 flex items-center gap-1">
               <TrendingDown size={10} className="text-[#D84040]" />
               <span>-21% from last month</span>
@@ -204,8 +273,10 @@ const ReferralDashboard = () => {
             <Search size={20} className="text-[#7B7B7B]" />
             <input
               type="text"
-              placeholder="Search by offer title, or trigger type"
+              placeholder="Search by referrer or referred name"
               className="flex-1 outline-none font-inter text-base text-[#7B7B7B] placeholder-[#7B7B7B]"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
@@ -223,9 +294,9 @@ const ReferralDashboard = () => {
 
             {/* EXACT DESIGN DROPDOWN */}
             {isFilterOpen && (
-              <div className="absolute right-0 top-full mt-2 w-32 bg-white rounded-lg shadow-lg border border-[#E5E5E5] overflow-hidden z-50">
+              <div className="absolute right-0 top-full mt-2 w-40 bg-white rounded-lg shadow-lg border border-[#E5E5E5] overflow-hidden z-50">
                 <div className="py-2">
-                  {["All", "Active", "Expired", "Suspended"].map((filter) => {
+                  {["All", "Paid", "Pending", "Processing"].map((filter) => {
                     const isSelected = selectedFilters.includes(filter);
 
                     return (
@@ -271,9 +342,9 @@ const ReferralDashboard = () => {
         </div>
 
         {/* TABLE OR EMPTY STATE */}
-        {hasReferrals ? (
+        {filteredReferrals.length > 0 ? (
           <div className="p-0">
-            {/* <ReferralTable /> */}
+            <ReferralTable referrals={filteredReferrals} />
           </div>
         ) : (
           <div className="py-20">

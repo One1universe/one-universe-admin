@@ -4,6 +4,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Search, Filter, TrendingUp, TrendingDown, Check } from "lucide-react";
 import SettingsEmptyState from "./PromotionalEmptyState";
+import PromotionalOffersTable from "./PromotionalTable";
+import CreatePromoOfferModal from "./modal/CreatePromoOfferModal";
+import { PromotionalOffer } from "@/types/PromotionalOffer";
 
 interface Plan {
   id: string;
@@ -15,12 +18,13 @@ interface Plan {
 }
 
 const PromotionalDashboard = () => {
-  const hasPromotionals = false;
+  const [hasPromotionals, setHasPromotionals] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Filter State
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState<string[]>(["All"]);
+  const [searchQuery, setSearchQuery] = useState("");
   const filterRef = useRef<HTMLDivElement>(null);
 
   const plan: Plan = {
@@ -31,6 +35,62 @@ const PromotionalDashboard = () => {
     yearlyPrice: 50000,
     iconColor: "#154751",
   };
+
+  // Sample promotional offers data
+  const [offers] = useState<PromotionalOffer[]>([
+    {
+      id: "1",
+      offerId: "#OFF001",
+      title: "Summer Sale 2025",
+      type: "Discount",
+      eligibleUser: "All Users",
+      endDate: "31 Aug 2025",
+      redemptions: 1250,
+      status: "Active",
+    },
+    {
+      id: "2",
+      offerId: "#OFF002",
+      title: "Free Shipping",
+      type: "Free Shipping",
+      eligibleUser: "Premium Members",
+      endDate: "30 Jun 2025",
+      redemptions: 856,
+      status: "Active",
+    },
+    {
+      id: "3",
+      offerId: "#OFF003",
+      title: "Buy One Get One",
+      type: "Bundle",
+      eligibleUser: "First-time Buyers",
+      endDate: "15 May 2025",
+      redemptions: 342,
+      status: "Completed",
+    },
+    {
+      id: "4",
+      offerId: "#OFF004",
+      title: "Cashback Bonanza",
+      type: "Cashback",
+      eligibleUser: "All Users",
+      endDate: "20 Jun 2025",
+      redemptions: 2103,
+      status: "Active",
+    },
+  ]);
+
+  // Filter offers based on search and selected filters
+  const filteredOffers = offers.filter((offer) => {
+    const matchesSearch =
+      offer.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      offer.type.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesFilter =
+      selectedFilters.includes("All") || selectedFilters.includes(offer.status);
+
+    return matchesSearch && matchesFilter;
+  });
 
   const handleUpdatePrice = (planId: string, newMonthlyPrice: number, newYearlyPrice: number) => {
     console.log("UPDATED PLAN:", planId, newMonthlyPrice, newYearlyPrice);
@@ -49,6 +109,9 @@ const PromotionalDashboard = () => {
 
   return (
     <div className="w-full space-y-8 px-5 md:px-0">
+
+      {/* Create Promo Offer Modal */}
+      {isModalOpen && <CreatePromoOfferModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />}
 
       {/* === HEADER SECTION === */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -206,6 +269,8 @@ const PromotionalDashboard = () => {
               type="text"
               placeholder="Search by offer title, or trigger type"
               className="flex-1 outline-none font-inter text-base text-[#7B7B7B] placeholder-[#7B7B7B]"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
@@ -225,7 +290,7 @@ const PromotionalDashboard = () => {
             {isFilterOpen && (
               <div className="absolute right-0 top-full mt-2 w-32 bg-white rounded-lg shadow-lg border border-[#E5E5E5] overflow-hidden z-50">
                 <div className="py-2">
-                  {["All", "Active", "Expired", "Suspended"].map((filter) => {
+                  {["All", "Active", "Completed", "Expired", "Draft"].map((filter) => {
                     const isSelected = selectedFilters.includes(filter);
 
                     return (
@@ -271,9 +336,9 @@ const PromotionalDashboard = () => {
         </div>
 
         {/* TABLE OR EMPTY STATE */}
-        {hasPromotionals ? (
+        {filteredOffers.length > 0 ? (
           <div className="p-0">
-            {/* <PromotionalTable /> */}
+            <PromotionalOffersTable offers={filteredOffers} />
           </div>
         ) : (
           <div className="py-20">
