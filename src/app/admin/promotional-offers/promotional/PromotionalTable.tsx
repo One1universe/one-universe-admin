@@ -1,8 +1,12 @@
+// components/PromotionalTable.tsx
 "use client";
 
 import React, { useState } from "react";
 import { PromotionalOffer } from "@/types/PromotionalOffer";
 import PromotionalEmptyState from "./PromotionalEmptyState";
+import PromotionDetailModal from "./modal/PromotionDetailModal";
+import CreatePromoOfferModal from "./modal/CreatePromoOfferModal";
+import DeletePromotionModal from "./modal/DeletePromotionModal";
 import { Eye, Edit2, Trash2 } from "lucide-react";
 
 interface PromotionalOffersTableProps {
@@ -12,6 +16,17 @@ interface PromotionalOffersTableProps {
 const PromotionalOffersTable = ({ offers }: PromotionalOffersTableProps) => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+
+  // View modal
+  const [detailOffer, setDetailOffer] = useState<PromotionalOffer | null>(null);
+
+  // Edit modal
+  const [editOffer, setEditOffer] = useState<PromotionalOffer | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // Delete modal
+  const [deleteOffer, setDeleteOffer] = useState<PromotionalOffer | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const handleActionClick = (
     offerId: string,
@@ -39,20 +54,43 @@ const PromotionalOffersTable = ({ offers }: PromotionalOffersTableProps) => {
   };
 
   const handleView = (offer: PromotionalOffer) => {
-    alert(`View offer: ${offer.title}`);
+    setDetailOffer(offer);
     setOpenMenuId(null);
   };
 
   const handleEdit = (offer: PromotionalOffer) => {
-    alert(`Edit offer: ${offer.title}`);
+    setEditOffer(offer);
+    setIsEditModalOpen(true);
     setOpenMenuId(null);
   };
 
   const handleDelete = (offer: PromotionalOffer) => {
-    if (confirm(`Delete "${offer.title}"?`)) {
-      alert("Deleted!");
-    }
+    setDeleteOffer(offer);
+    setIsDeleteModalOpen(true);
     setOpenMenuId(null);
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteOffer) {
+      alert(`"${deleteOffer.title}" deleted successfully!`);
+      // Here you would call your API to delete the offer
+      // e.g., await deleteOffer(deleteOffer.id);
+    }
+  };
+
+  // Handle edit from detail modal
+  const handleEditFromDetail = (offer: PromotionalOffer) => {
+    setDetailOffer(null); // Close detail modal
+    setTimeout(() => {
+      setEditOffer(offer); // Set offer to edit
+      setIsEditModalOpen(true); // Open edit modal
+    }, 150); // Small delay for smooth transition
+  };
+
+  // Handle delete from detail modal
+  const handleDeleteFromDetail = (offer: PromotionalOffer) => {
+    // The delete modal is already shown from PromotionDetailModal
+    // No need to do anything here as it's handled internally
   };
 
   const getStatusStyles = (status: PromotionalOffer["status"]) => {
@@ -122,14 +160,12 @@ const PromotionalOffersTable = ({ offers }: PromotionalOffersTableProps) => {
                         </svg>
                       </button>
 
-                      {/* PERFECT FIGMA MENU — 168×176px */}
                       {openMenuId === offer.id && (
                         <div
                           className="fixed w-42 bg-white rounded-[20px] shadow-[0px_8px_29px_0px_#5F5E5E30] border border-[#E5E7EF] overflow-hidden z-50"
                           style={{ top: menuPosition.top, left: menuPosition.left }}
                           onClick={(e) => e.stopPropagation()}
                         >
-                          {/* View Offer */}
                           <button
                             onClick={() => handleView(offer)}
                             className="w-full flex items-center gap-2.5 px-6 py-4.5 border-b border-[#E5E7EF] hover:bg-[#FAFAFA] transition"
@@ -137,8 +173,6 @@ const PromotionalOffersTable = ({ offers }: PromotionalOffersTableProps) => {
                             <Eye className="w-4.5 h-4.5 text-[#454345]" />
                             <span className="font-dm-sans text-base text-[#454345]">View Offer</span>
                           </button>
-
-                          {/* Edit Offer */}
                           <button
                             onClick={() => handleEdit(offer)}
                             className="w-full flex items-center gap-2.5 px-6 py-4.5 border-b border-[#E5E7EF] hover:bg-[#FAFAFA] transition"
@@ -146,8 +180,6 @@ const PromotionalOffersTable = ({ offers }: PromotionalOffersTableProps) => {
                             <Edit2 className="w-4.5 h-4.5 text-[#454345]" />
                             <span className="font-dm-sans text-base text-[#454345]">Edit Offer</span>
                           </button>
-
-                          {/* Delete Offer */}
                           <button
                             onClick={() => handleDelete(offer)}
                             className="w-full flex items-center gap-2.5 px-6 py-4.5 hover:bg-[#FAFAFA] transition text-red-600"
@@ -164,7 +196,7 @@ const PromotionalOffersTable = ({ offers }: PromotionalOffersTableProps) => {
             </table>
           </div>
 
-          {/* Mobile Cards — Same menu */}
+          {/* Mobile Cards */}
           <div className="md:hidden space-y-4 p-4">
             {offers.map((offer) => (
               <div key={offer.id} className="bg-white border border-[#E8E3E3] rounded-lg p-4 shadow-sm relative">
@@ -200,7 +232,6 @@ const PromotionalOffersTable = ({ offers }: PromotionalOffersTableProps) => {
                   <p className="font-dm-sans text-[#454345]"><span className="font-medium text-[#303237]">Redeemed:</span> {offer.redemptions.toLocaleString()}</p>
                 </div>
 
-                {/* SAME MENU IN MOBILE */}
                 {openMenuId === offer.id && (
                   <div
                     className="fixed w-42 bg-white rounded-[20px] shadow-[0px_8px_29px_0px_#5F5E5E30] border border-[#E5E7EF] overflow-hidden z-50"
@@ -228,6 +259,37 @@ const PromotionalOffersTable = ({ offers }: PromotionalOffersTableProps) => {
       ) : (
         <PromotionalEmptyState />
       )}
+
+      {/* View Detail Modal */}
+      <PromotionDetailModal
+        offer={detailOffer!}
+        isOpen={!!detailOffer}
+        onClose={() => setDetailOffer(null)}
+        onEdit={handleEditFromDetail}
+        onDelete={handleDeleteFromDetail}
+      />
+
+      {/* Edit Modal */}
+      <CreatePromoOfferModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditOffer(null);
+        }}
+        offerToEdit={editOffer}
+        mode="edit"
+      />
+
+      {/* Delete Confirmation Modal (from table dropdown) */}
+      <DeletePromotionModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setDeleteOffer(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        offerTitle={deleteOffer?.title}
+      />
     </>
   );
 };

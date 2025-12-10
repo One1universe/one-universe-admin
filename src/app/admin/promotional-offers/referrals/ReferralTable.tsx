@@ -3,6 +3,9 @@
 import React, { useState } from "react";
 import { Referral } from "@/types/Referral";
 import ReferralEmptyState from "./ReferralEmptyState";
+import ReferralDetailModal from "./modal/ReferralDetailModal";
+import ResolveRewardModal from "./modal/ResolveRewardModal";
+import { Eye, CheckCircle } from "lucide-react";
 
 interface ReferralTableProps {
   referrals: Referral[];
@@ -11,16 +14,26 @@ interface ReferralTableProps {
 const ReferralTable = ({ referrals }: ReferralTableProps) => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [selectedReferral, setSelectedReferral] = useState<Referral | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
 
   const handleActionClick = (
     referralId: string,
     event: React.MouseEvent<HTMLButtonElement>
   ) => {
+    event.stopPropagation();
     setOpenMenuId(prev => prev === referralId ? null : referralId);
   };
 
   const openReferralDetail = (referral: Referral) => {
     setSelectedReferral(referral);
+    setIsDetailModalOpen(true);
+    setOpenMenuId(null);
+  };
+
+  const openResolveModal = (referral: Referral) => {
+    setSelectedReferral(referral);
+    setIsResolveModalOpen(true);
     setOpenMenuId(null);
   };
 
@@ -79,7 +92,7 @@ const ReferralTable = ({ referrals }: ReferralTableProps) => {
               </thead>
               <tbody>
                 {referrals.map((referral) => (
-                  <tr key={referral.id} className="bg-white border-b border-[#E5E5E5] hover:bg-[#FAFAFA]">
+                  <tr key={referral.id} className="bg-white border-b border-[#E5E5E5] hover:bg-[#FAFAFA] relative">
                     <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">{referral.referrerName}</td>
                     <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">{referral.referredName}</td>
                     <td className="py-[18px] px-[25px]">
@@ -97,16 +110,38 @@ const ReferralTable = ({ referrals }: ReferralTableProps) => {
                       {getRewardIcon(referral.rewardEarned)}
                     </td>
                     <td className="py-[18px] px-[25px]">
-                      <button
-                        onClick={(e) => handleActionClick(referral.id, e)}
-                        className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                      >
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-[#303237]">
-                          <circle cx="10" cy="5" r="2" fill="currentColor" />
-                          <circle cx="10" cy="10" r="2" fill="currentColor" />
-                          <circle cx="10" cy="15" r="2" fill="currentColor" />
-                        </svg>
-                      </button>
+                      <div className="relative">
+                        <button
+                          onClick={(e) => handleActionClick(referral.id, e)}
+                          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-[#303237]">
+                            <circle cx="10" cy="5" r="2" fill="currentColor" />
+                            <circle cx="10" cy="10" r="2" fill="currentColor" />
+                            <circle cx="10" cy="15" r="2" fill="currentColor" />
+                          </svg>
+                        </button>
+
+                        {/* Action Menu */}
+                        {openMenuId === referral.id && (
+                          <div className="absolute right-0 mt-2 w-[169px] bg-white rounded-[20px] shadow-[0px_8px_29px_0px_#5F5E5E30] overflow-hidden z-40">
+                            <button
+                              onClick={() => openReferralDetail(referral)}
+                              className="w-full px-[25px] py-[18px] flex items-center gap-[10px] border-b border-[#E5E7EF] hover:bg-gray-50 transition-colors"
+                            >
+                              <Eye width={18} height={18} className="text-[#454345]" />
+                              <span className="font-dm-sans font-regular text-base text-[#454345]">View Details</span>
+                            </button>
+                            <button
+                              onClick={() => openResolveModal(referral)}
+                              className="w-full px-[25px] py-[18px] flex items-center gap-[10px] hover:bg-gray-50 transition-colors"
+                            >
+                              <CheckCircle width={18} height={18} className="text-[#454345]" />
+                              <span className="font-dm-sans font-regular text-base text-[#454345]">Resolve</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -119,7 +154,7 @@ const ReferralTable = ({ referrals }: ReferralTableProps) => {
             {referrals.map((referral) => (
               <div key={referral.id} className="bg-white border border-[#E8E3E3] rounded-lg p-4 shadow-sm">
                 <div className="flex justify-between items-start mb-3">
-                  <div>
+                  <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-dm-sans font-medium text-base text-[#303237]">{referral.referrerName}</span>
                     </div>
@@ -137,7 +172,7 @@ const ReferralTable = ({ referrals }: ReferralTableProps) => {
                   </button>
                 </div>
 
-                <div className="flex flex-wrap gap-2 mb-3">
+                <div className="flex flex-wrap gap-2 mb-4">
                   <div className={`inline-flex items-center px-2 py-1 rounded-lg text-xs ${getTransactionStyles(referral.firstTransaction)}`}>
                     <span className="font-dm-sans font-medium">{referral.firstTransaction}</span>
                   </div>
@@ -146,16 +181,82 @@ const ReferralTable = ({ referrals }: ReferralTableProps) => {
                   </div>
                 </div>
 
-                <div className="space-y-2 text-sm">
+                <div className="space-y-2 text-sm mb-4">
                   <p className="font-dm-sans text-[#454345]"><span className="font-medium text-[#303237]">Date:</span> {referral.signDate}</p>
                   <p className="font-dm-sans text-[#454345]"><span className="font-medium text-[#303237]">Reward:</span> {referral.rewardEarned ? "Yes" : "No"}</p>
                 </div>
+
+                {/* Mobile View Details Button */}
+                <button
+                  onClick={() => openReferralDetail(referral)}
+                  className="w-full px-6 py-2 rounded-full flex items-center justify-center gap-2 text-white font-dm-sans font-medium text-base transition-opacity hover:opacity-90"
+                  style={{ background: 'radial-gradient(50% 50% at 50% 50%, #154751 37%, #04171F 100%)' }}
+                >
+                  <Eye width={18} height={18} />
+                  <span>View Details</span>
+                </button>
+
+                {/* Mobile Action Menu */}
+                {openMenuId === referral.id && (
+                  <div className="mt-3 rounded-[20px] bg-white border border-[#E5E7EF] overflow-hidden">
+                    <button
+                      onClick={() => openReferralDetail(referral)}
+                      className="w-full px-[25px] py-[18px] flex items-center gap-[10px] border-b border-[#E5E7EF] hover:bg-gray-50 transition-colors"
+                    >
+                      <Eye width={18} height={18} className="text-[#454345]" />
+                      <span className="font-dm-sans font-regular text-base text-[#454345]">View Details</span>
+                    </button>
+                    <button
+                      onClick={() => openResolveModal(referral)}
+                      className="w-full px-[25px] py-[18px] flex items-center gap-[10px] hover:bg-gray-50 transition-colors"
+                    >
+                      <CheckCircle width={18} height={18} className="text-[#454345]" />
+                      <span className="font-dm-sans font-regular text-base text-[#454345]">Resolve</span>
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </>
       ) : (
         <ReferralEmptyState />
+      )}
+
+      {/* Referral Detail Modal */}
+      {selectedReferral && (
+        <ReferralDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={() => {
+            setIsDetailModalOpen(false);
+            setSelectedReferral(null);
+          }}
+          referral={selectedReferral}
+        />
+      )}
+
+      {/* Resolve Reward Modal */}
+      {selectedReferral && (
+        <ResolveRewardModal
+          isOpen={isResolveModalOpen}
+          onClose={() => {
+            setIsResolveModalOpen(false);
+            setSelectedReferral(null);
+          }}
+          referral={selectedReferral}
+          onMarkAsPaid={() => {
+            console.log("Mark as Paid:", selectedReferral.id);
+            setIsResolveModalOpen(false);
+          }}
+          onRecalculateAndRetry={() => {
+            console.log("Recalculate and Retry:", selectedReferral.id);
+            setIsResolveModalOpen(false);
+          }}
+          onMarkAsIneligible={() => {
+            console.log("Mark as Ineligible:", selectedReferral.id);
+            setIsResolveModalOpen(false);
+          }}
+        />
       )}
     </>
   );
