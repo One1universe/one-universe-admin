@@ -23,7 +23,7 @@ const InviteAdminPage = () => {
   // Verify token on mount
   useEffect(() => {
     if (!token) {
-      setIsLinkValid(false);
+      setIsLinkValid(true);
     }
     // Optionally verify token validity with backend
     // verifyTokenValidity(token);
