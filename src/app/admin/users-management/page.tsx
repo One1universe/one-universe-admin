@@ -10,6 +10,7 @@ import SellerDetails from "./Tabs/SellersTabs/SellerDetails";
 import AdminDetails from "./Tabs/AdminTabs/AdminDetails";
 import BuyerFilters from "./Filters/BuyerFilters";
 import SellerFilters from "./Filters/SellerFilters";
+import InviteNewAdmin from "./components/modals/InviteNewAdmin";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { userManagementStore } from "@/store/userManagementStore";
 import { useState, useRef, useEffect } from "react";
@@ -73,6 +74,7 @@ const UsersManagement = () => {
   
   const [showFilter, setShowFilter] = useState(false);
   const [activeTab, setActiveTab] = useState<"Buyers" | "Sellers" | "Admin Users">("Buyers");
+  const [isInviteAdminOpen, setIsInviteAdminOpen] = useState(false);
 
   const [pagination, setPagination] = useState({
     Buyers: { current: 1, total: 1 },
@@ -141,6 +143,12 @@ const UsersManagement = () => {
     return false;
   };
 
+  const handleInviteAdmin = (adminData: any) => {
+    console.log('Inviting admin:', adminData);
+    // Add your API call here to invite the admin
+    // After successful invitation, you might want to refresh the admin table
+  };
+
   return (
     <Tabs
       value={activeTab}
@@ -159,7 +167,10 @@ const UsersManagement = () => {
         </div>
 
         {activeTab === "Admin Users" && (
-          <button className="[background:var(--primary-radial)] px-6 flex items-center justify-center gap-3 text-white h-11 rounded-[20px] font-medium">
+          <button 
+            onClick={() => setIsInviteAdminOpen(true)}
+            className="[background:var(--primary-radial)] px-6 flex items-center justify-center gap-3 text-white h-11 rounded-[20px] font-medium"
+          >
             <Plus size={16} />
             Invite Admin
           </button>
@@ -295,6 +306,13 @@ const UsersManagement = () => {
       {modalType === "openBuyer" && <BuyerDetails />}
       {modalType === "openSeller" && <SellerDetails />}
       {modalType === "openAdmin" && <AdminDetails />}
+      
+      {/* Invite New Admin Modal */}
+      <InviteNewAdmin
+        isOpen={isInviteAdminOpen}
+        onClose={() => setIsInviteAdminOpen(false)}
+        onInvite={handleInviteAdmin}
+      />
     </Tabs>
   );
 };

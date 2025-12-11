@@ -5,6 +5,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Search, Filter, TrendingUp, TrendingDown, Check } from "lucide-react";
 import SettingsEmptyState from "./ReferralEmptyState";
 import ReferralTable from "./ReferralTable";
+import ReferralProgramSettings from "./modal/ReferralProgramSettings";
 import { Referral } from "@/types/Referral";
 
 interface Plan {
@@ -19,6 +20,7 @@ interface Plan {
 const ReferralDashboard = () => {
   const [hasReferrals, setHasReferrals] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Filter State
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -105,6 +107,16 @@ const ReferralDashboard = () => {
     console.log("UPDATED PLAN:", planId, newMonthlyPrice, newYearlyPrice);
   };
 
+  const handleSaveSettings = (settings: any) => {
+    console.log("Saved settings:", settings);
+    // Add your API call here
+  };
+
+  const handleUpdateRules = (rules: any) => {
+    console.log("Updated rules:", rules);
+    // Add your API call here
+  };
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -132,7 +144,7 @@ const ReferralDashboard = () => {
 
         {/* Settings Button */}
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => setIsSettingsOpen(true)}
           className="flex items-center justify-center gap-2 h-[48px] rounded-[20px] px-6 py-4 whitespace-nowrap"
           style={{
             background: 'radial-gradient(50% 50% at 50% 50%, #154751 37%, #04171F 100%)'
@@ -352,6 +364,14 @@ const ReferralDashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Referral Program Settings Modal */}
+      <ReferralProgramSettings
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onSaveSettings={handleSaveSettings}
+        onUpdateRules={handleUpdateRules}
+      />
 
     </div>
   );

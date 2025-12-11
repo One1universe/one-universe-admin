@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { X, ArrowLeft } from "lucide-react";
 import { Referral } from "@/types/Referral";
+import MarkIneligibleModal from "./IneligibleRewardModal";
+import MarkAsPaidModal from "./MarkAsPaidModal";
 
 interface ResolveRewardModalProps {
   isOpen: boolean;
@@ -19,6 +21,9 @@ const ResolveRewardModal: React.FC<ResolveRewardModalProps> = ({
   onRecalculateAndRetry,
   onMarkAsIneligible,
 }) => {
+  const [showIneligibleModal, setShowIneligibleModal] = useState(false);
+  const [showPaidModal, setShowPaidModal] = useState(false);
+
   if (!isOpen) return null;
 
   return (
@@ -185,7 +190,7 @@ const ResolveRewardModal: React.FC<ResolveRewardModalProps> = ({
               <div className="space-y-5">
                 {/* Mark as Paid Button */}
                 <button
-                  onClick={onMarkAsPaid}
+                  onClick={() => setShowPaidModal(true)}
                   className="w-full px-6 py-4 rounded-full text-white font-dm-sans font-medium text-base transition-opacity hover:opacity-90"
                   style={{ background: 'radial-gradient(50% 50% at 50% 50%, #154751 37%, #04171F 100%)' }}
                 >
@@ -208,7 +213,7 @@ const ResolveRewardModal: React.FC<ResolveRewardModalProps> = ({
 
                 {/* Mark as Ineligible Button */}
                 <button
-                  onClick={onMarkAsIneligible}
+                  onClick={() => setShowIneligibleModal(true)}
                   className="w-full px-6 py-4 rounded-full bg-[#D84040] text-white font-dm-sans font-medium text-base transition-opacity hover:opacity-90"
                 >
                   Mark as Ineligible
@@ -218,6 +223,34 @@ const ResolveRewardModal: React.FC<ResolveRewardModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Mark as Paid Modal */}
+      <MarkAsPaidModal
+        isOpen={showPaidModal}
+        onClose={() => setShowPaidModal(false)}
+        onConfirm={() => {
+          console.log('Marked as paid');
+          if (onMarkAsPaid) {
+            onMarkAsPaid();
+          }
+          setShowPaidModal(false);
+          onClose();
+        }}
+      />
+
+      {/* Mark as Ineligible Modal */}
+      <MarkIneligibleModal
+        isOpen={showIneligibleModal}
+        onClose={() => setShowIneligibleModal(false)}
+        onConfirm={(notes) => {
+          console.log('Marked as ineligible with notes:', notes);
+          if (onMarkAsIneligible) {
+            onMarkAsIneligible();
+          }
+          setShowIneligibleModal(false);
+          onClose();
+        }}
+      />
     </>
   );
 };
