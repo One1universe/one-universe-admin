@@ -1,25 +1,18 @@
-import React, { useState } from 'react';
-import { X, ChevronDown, UserPlus, Settings, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, ChevronDown, UserPlus, Settings, Check, AlertCircle } from 'lucide-react';
+import { useAdminStore } from '@/store/adminStore';
+import { PermissionData, InviteAdminPayload } from '@/types/admin';
 
 interface InviteNewAdminProps {
   isOpen: boolean;
   onClose: () => void;
-  onInvite?: (adminData: any) => void;
-}
-
-interface PermissionState {
-  [action: string]: {
-    view: boolean;
-    manage: boolean;
-    delete: boolean;
-    export: boolean;
-  };
+  onSuccess?: (data: any) => void;
 }
 
 const InviteNewAdmin: React.FC<InviteNewAdminProps> = ({
   isOpen,
   onClose,
-  onInvite,
+  onSuccess,
 }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'permissions'>('profile');
   const [fullName, setFullName] = useState('');
@@ -27,80 +20,98 @@ const InviteNewAdmin: React.FC<InviteNewAdminProps> = ({
   const [selectedRole, setSelectedRole] = useState('');
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
 
-  const predefinedRoles = ['Admin', 'User Manager', 'Content Manager', 'Support Staff'];
+  const [selectedPermissions, setSelectedPermissions] = useState<PermissionData[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const actions = [
-    'Dashboard',
-    'User Management',
-    'Payment Management',
-    'Dispute',
-    'Service Management',
-    'Promotional Offers',
-    'Support & Feedback',
-  ];
+  const { roles, permissions, loading, error, fetchRoles, fetchPermissions, sendInvite, clearError } =
+    useAdminStore();
 
-  const permissionTypes = ['view', 'manage', 'delete', 'export'];
+  // Fetch roles and permissions on mount
+  useEffect(() => {
+    if (isOpen) {
+      fetchRoles();
+      fetchPermissions();
+      clearError();
+    }
+  }, [isOpen, fetchRoles, fetchPermissions, clearError]);
 
-  const [permissionState, setPermissionState] = useState<PermissionState>(() => {
-    const initialState: PermissionState = {};
-    actions.forEach((action) => {
-      initialState[action] = {
-        view: true,
-        manage: false,
-        delete: false,
-        export: false,
-      };
+  // Get unique modules for the UI
+  const modules = Array.from(new Set(permissions.map((p) => p.module)));
+
+  const isFormValid =
+    fullName.trim() !== '' &&
+    email.trim() !== '' &&
+    selectedRole !== '' &&
+    (activeTab === 'profile' || selectedPermissions.length > 0);
+
+  const togglePermission = (module: string, action: string) => {
+    setSelectedPermissions((prev) => {
+      const exists = prev.some((p) => p.module === module && p.action === action);
+      if (exists) {
+        return prev.filter((p) => !(p.module === module && p.action === action));
+      } else {
+        return [...prev, { module, action }];
+      }
     });
-    return initialState;
-  });
-
-  const hasAnyPermission = actions.some((action) =>
-    permissionTypes.some((perm) => permissionState[action][perm as keyof PermissionState[keyof PermissionState]])
-  );
-
-  const isFormValid = fullName.trim() !== '' && email.trim() !== '' && selectedRole !== '' && (activeTab === 'profile' || hasAnyPermission);
-
-  const togglePermission = (action: string, permission: string) => {
-    setPermissionState((prev) => ({
-      ...prev,
-      [action]: {
-        ...prev[action],
-        [permission]: !prev[action][permission as keyof PermissionState[keyof PermissionState]],
-      },
-    }));
   };
 
-  const toggleAllPermissions = () => {
-    const allEnabled = actions.every((action) =>
-      permissionTypes.every((perm) => permissionState[action][perm as keyof PermissionState[keyof PermissionState]])
+  const toggleAllForModule = (module: string) => {
+    const modulePermissions = permissions.filter((p) => p.module === module);
+    const allSelected = modulePermissions.every((p) =>
+      selectedPermissions.some((sp) => sp.module === p.module && sp.action === p.action)
     );
-    
-    const newState: PermissionState = {};
-    actions.forEach((action) => {
-      newState[action] = {
-        view: !allEnabled,
-        manage: !allEnabled,
-        delete: !allEnabled,
-        export: !allEnabled,
-      };
-    });
-    setPermissionState(newState);
+
+    if (allSelected) {
+      setSelectedPermissions((prev) =>
+        prev.filter((p) => p.module !== module)
+      );
+    } else {
+      const newPermissions = modulePermissions.map((p) => ({
+        module: p.module,
+        action: p.action,
+      }));
+      setSelectedPermissions((prev) => [
+        ...prev,
+        ...newPermissions.filter(
+          (np) => !prev.some((p) => p.module === np.module && p.action === np.action)
+        ),
+      ]);
+    }
   };
 
-  const handleProceed = () => {
-    if (isFormValid && onInvite) {
-      onInvite({
+  const handleProceed = async () => {
+    if (!isFormValid) return;
+
+    setIsSubmitting(true);
+    setSuccessMessage('');
+
+    try {
+      const payload: InviteAdminPayload = {
         fullName,
         email,
-        role: selectedRole,
-        permissions: permissionState,
-      });
-      // Reset form
-      setFullName('');
-      setEmail('');
-      setSelectedRole('');
-      setActiveTab('profile');
-      onClose();
+        roleName: selectedRole,
+        permissions: selectedPermissions,
+      };
+
+      const response = await sendInvite(payload);
+
+      setSuccessMessage(response?.message || 'Admin invitation sent successfully!');
+      
+      // Reset form after success
+      setTimeout(() => {
+        setFullName('');
+        setEmail('');
+        setSelectedRole('');
+        setSelectedPermissions([]);
+        setActiveTab('profile');
+        onSuccess?.(response);
+        onClose();
+      }, 1500);
+    } catch (err) {
+      console.error('Invitation failed:', err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -114,11 +125,11 @@ const InviteNewAdmin: React.FC<InviteNewAdminProps> = ({
       {/* Modal */}
       <div
         className="fixed inset-0 z-[90] flex items-start md:items-center justify-center pt-4 md:pt-0 px-0 md:px-4 pb-0 md:pb-4 overflow-y-auto"
-        style={{ contain: "none" }}
+        style={{ contain: 'none' }}
       >
         <div
           className="w-full md:max-w-[603px] bg-white md:rounded-2xl rounded-t-2xl shadow-[-1px_8px_12px_0px_#0000001F] overflow-visible min-h-[calc(100vh-16px)] md:min-h-0 md:max-h-[90vh] overflow-y-auto"
-          style={{ transform: "translateZ(0)" }}
+          style={{ transform: 'translateZ(0)' }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Teal Header */}
@@ -138,17 +149,14 @@ const InviteNewAdmin: React.FC<InviteNewAdminProps> = ({
 
           {/* Tabs */}
           <div className="px-4 md:px-8 py-0 flex items-center gap-3 md:gap-5 overflow-x-auto sticky top-[88px] bg-white z-10 border-b border-[#E8E3E3]">
-            {/* Profile Information Tab */}
             <button
               onClick={() => setActiveTab('profile')}
               className={`flex items-center gap-2 px-1 py-1 border-b-2 transition whitespace-nowrap flex-shrink-0 ${
-                activeTab === 'profile'
-                  ? 'border-[#454345]'
-                  : 'border-[#949394]'
+                activeTab === 'profile' ? 'border-[#454345]' : 'border-[#949394]'
               }`}
             >
-              <UserPlus 
-                size={16} 
+              <UserPlus
+                size={16}
                 className={`flex-shrink-0 ${activeTab === 'profile' ? 'text-[#171417]' : 'text-[#949394]'}`}
               />
               <span
@@ -160,17 +168,14 @@ const InviteNewAdmin: React.FC<InviteNewAdminProps> = ({
               </span>
             </button>
 
-            {/* Permission Management Tab */}
             <button
               onClick={() => setActiveTab('permissions')}
               className={`flex items-center gap-2 px-1 py-1 border-b-2 transition whitespace-nowrap flex-shrink-0 ${
-                activeTab === 'permissions'
-                  ? 'border-[#454345]'
-                  : 'border-[#949394]'
+                activeTab === 'permissions' ? 'border-[#454345]' : 'border-[#949394]'
               }`}
             >
-              <Settings 
-                size={16} 
+              <Settings
+                size={16}
                 className={`flex-shrink-0 ${activeTab === 'permissions' ? 'text-[#171417]' : 'text-[#949394]'}`}
               />
               <span
@@ -185,6 +190,24 @@ const InviteNewAdmin: React.FC<InviteNewAdminProps> = ({
 
           {/* Content */}
           <div className="px-4 md:px-8 py-5 flex flex-col gap-5">
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-dm-sans font-medium text-red-900">{error}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Success Message */}
+            {successMessage && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex gap-3">
+                <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <p className="font-dm-sans font-medium text-green-900">{successMessage}</p>
+              </div>
+            )}
+
             {activeTab === 'profile' ? (
               <>
                 {/* Full Name */}
@@ -196,7 +219,7 @@ const InviteNewAdmin: React.FC<InviteNewAdminProps> = ({
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Enter your admin first and last name"
+                    placeholder="Enter admin's full name"
                     className="w-full h-[46px] rounded-xl border border-[#B2B2B4] px-4 py-3 font-dm-sans text-base text-[#171417] placeholder:text-[#B2B2B4] focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   />
                 </div>
@@ -210,7 +233,7 @@ const InviteNewAdmin: React.FC<InviteNewAdminProps> = ({
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your admin email"
+                    placeholder="Enter admin's email"
                     className="w-full h-[46px] rounded-xl border border-[#B2B2B4] px-4 py-3 font-dm-sans text-base text-[#171417] placeholder:text-[#B2B2B4] focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   />
                 </div>
@@ -228,46 +251,45 @@ const InviteNewAdmin: React.FC<InviteNewAdminProps> = ({
                           ? 'border text-[#454345]'
                           : 'border border-[#B2B2B4] text-[#B2B2B4]'
                       }`}
-                      style={
-                        selectedRole
-                          ? {
-                              borderWidth: '1px',
-                              borderStyle: 'solid',
-                              borderImage: 'radial-gradient(50% 50% at 50% 50%, #154751 37%, #04171F 100%) 1',
-                            }
-                          : {}
-                      }
                     >
-                      <span className="truncate text-left">{selectedRole || 'Choose from predefined or custom roles'}</span>
+                      <span className="truncate text-left">
+                        {selectedRole || 'Select a role'}
+                      </span>
                       <ChevronDown className="w-5 h-5 text-[#171417] flex-shrink-0 ml-2" />
                     </button>
 
-                    {/* Dropdown */}
                     {isRoleDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-[0px_1px_2px_0px_#1A1A1A1F,0px_4px_6px_0px_#1A1A1A14,0px_8px_16px_0px_#1A1A1A14] overflow-hidden z-[100]">
-                        {predefinedRoles.map((role) => (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg overflow-hidden z-[100] max-h-64 overflow-y-auto">
+                        {roles.map((role) => (
                           <button
-                            key={role}
+                            key={role.id}
                             onClick={() => {
-                              setSelectedRole(role);
+                              setSelectedRole(role.name);
                               setIsRoleDropdownOpen(false);
                             }}
-                            className="w-full px-2 py-2 flex items-center gap-3 hover:bg-gray-50 transition border-b border-[#E5E5E5] last:border-b-0"
+                            className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition border-b border-[#E5E5E5] last:border-b-0"
                           >
                             <div
                               className={`w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 ${
-                                selectedRole === role
+                                selectedRole === role.name
                                   ? 'bg-[#E6E6E6] border-[#154751]'
                                   : 'bg-white border-[#757575]'
                               }`}
                             >
-                              {selectedRole === role && (
+                              {selectedRole === role.name && (
                                 <div className="w-2 h-2 rounded-full bg-[#154751]" />
                               )}
                             </div>
-                            <span className="font-dm-sans text-base text-[#3C3C3C]">
-                              {role}
-                            </span>
+                            <div className="text-left">
+                              <p className="font-dm-sans text-base text-[#171417]">
+                                {role.name}
+                              </p>
+                              {role.description && (
+                                <p className="font-dm-sans text-xs text-[#949394]">
+                                  {role.description}
+                                </p>
+                              )}
+                            </div>
                           </button>
                         ))}
                       </div>
@@ -277,124 +299,70 @@ const InviteNewAdmin: React.FC<InviteNewAdminProps> = ({
               </>
             ) : (
               <div className="flex flex-col gap-4">
-                {/* Permissions Table */}
-                <div className="w-full bg-white rounded-lg overflow-hidden border border-[#EAECF0]">
-                  {/* Header Row */}
-                  <div className="flex border-b border-[#EAECF0] bg-[#FFFCFC]">
-                    {/* Action Column */}
-                    <div className="w-48 px-6 py-4 border-r border-[#EAECF0]">
-                      <span className="font-dm-sans font-medium text-base text-[#171417]">
-                        Action
-                      </span>
-                    </div>
+                {/* Permissions by Module */}
+                {modules.map((module) => {
+                  const modulePermissions = permissions.filter((p) => p.module === module);
+                  const allSelected = modulePermissions.every((p) =>
+                    selectedPermissions.some((sp) => sp.module === p.module && sp.action === p.action)
+                  );
 
-                    {/* Admin Role Section */}
-                    <div className="flex-1">
-                      <div className="flex h-full border-r border-[#EAECF0]">
-                        {/* Admin Role Name */}
-                        <div className="w-32 px-4 py-4 border-r border-[#EAECF0] flex items-center justify-center">
-                          <span className="font-dm-sans font-medium text-base text-[#171417]">
-                            Admin
-                          </span>
-                        </div>
-
-                        {/* Enable All Button */}
-                        <div className="flex-1 px-4 py-4 flex items-center justify-center">
-                          <button
-                            onClick={toggleAllPermissions}
-                            className="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 transition"
-                            title="Enable/Disable all permissions"
-                          >
-                            <div
-                              className={`w-6 h-6 rounded border-2 flex items-center justify-center transition ${
-                                actions.every((action) =>
-                                  permissionTypes.every((perm) => permissionState[action][perm as keyof PermissionState[keyof PermissionState]])
-                                )
-                                  ? 'bg-[#154751] border-[#154751]'
-                                  : 'border-[#B2B2B4] bg-white'
-                              }`}
-                            >
-                              {actions.every((action) =>
-                                permissionTypes.every((perm) => permissionState[action][perm as keyof PermissionState[keyof PermissionState]])
-                              ) && (
-                                <Check className="w-4 h-4 text-white" />
-                              )}
-                            </div>
-                            <span className="font-dm-sans font-medium text-base text-[#171417]">
-                              Enable All
-                            </span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Sub-header with permission types */}
-                  <div className="flex border-b border-[#EAECF0] bg-[#FFFCFC]">
-                    {/* Action Column */}
-                    <div className="w-48 px-6 py-3 border-r border-[#EAECF0]">
-                      {/* Empty space matching action column */}
-                    </div>
-
-                    {/* Permission Types */}
-                    <div className="flex flex-1 border-r border-[#EAECF0]">
-                      {['View', 'Manage', 'Delete', 'Export'].map((perm) => (
-                        <div
-                          key={perm}
-                          className="flex-1 px-4 py-3 border-r border-[#EAECF0] last:border-r-0 flex items-center justify-center"
-                        >
-                          <span className="font-dm-sans font-medium text-base text-[#171417]">
-                            {perm}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Body Rows */}
-                  {actions.map((action) => (
-                    <div key={action} className="flex border-b border-[#EAECF0] last:border-b-0">
-                      {/* Action Name */}
-                      <div className="w-48 px-6 py-4 border-r border-[#EAECF0] flex items-center bg-white">
+                  return (
+                    <div key={module} className="border border-[#EAECF0] rounded-lg overflow-hidden">
+                      {/* Module Header */}
+                      <div className="bg-[#FFFCFC] px-4 py-3 border-b border-[#EAECF0] flex items-center justify-between">
                         <span className="font-dm-sans font-medium text-base text-[#171417]">
-                          {action}
+                          {module}
                         </span>
+                        <button
+                          onClick={() => toggleAllForModule(module)}
+                          className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 transition"
+                        >
+                          <div
+                            className={`w-5 h-5 rounded border-2 flex items-center justify-center transition ${
+                              allSelected
+                                ? 'bg-[#154751] border-[#154751]'
+                                : 'border-[#B2B2B4] bg-white'
+                            }`}
+                          >
+                            {allSelected && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                          <span className="font-dm-sans text-xs text-[#171417]">
+                            {allSelected ? 'Deselect' : 'Select'} All
+                          </span>
+                        </button>
                       </div>
 
-                      {/* Permission Cell */}
-                      <div className="flex-1 bg-white border-r border-[#EAECF0]">
-                        <div className="flex h-full">
-                          {permissionTypes.map((perm, idx) => (
-                            <div
-                              key={perm}
-                              className={`flex-1 flex items-center justify-center border-r border-[#EAECF0] last:border-r-0 hover:bg-gray-50 transition cursor-pointer ${
-                                idx < 3 ? 'border-r' : ''
+                      {/* Permissions */}
+                      <div className="flex flex-wrap gap-2 p-4">
+                        {modulePermissions.map((perm) => {
+                          const isSelected = selectedPermissions.some(
+                            (sp) => sp.module === perm.module && sp.action === perm.action
+                          );
+
+                          return (
+                            <button
+                              key={perm.id}
+                              onClick={() => togglePermission(perm.module, perm.action)}
+                              className={`px-3 py-2 rounded-lg font-dm-sans text-sm font-medium transition flex items-center gap-2 ${
+                                isSelected
+                                  ? 'bg-[#154751] text-white border border-[#154751]'
+                                  : 'bg-white border border-[#B2B2B4] text-[#171417] hover:border-[#154751]'
                               }`}
-                              onClick={() => togglePermission(action, perm)}
                             >
-                              <div
-                                className={`w-6 h-6 rounded border-2 flex items-center justify-center transition ${
-                                  permissionState[action][perm as keyof PermissionState[keyof PermissionState]]
-                                    ? 'bg-[#154751] border-[#154751]'
-                                    : 'border-[#B2B2B4] bg-white'
-                                }`}
-                              >
-                                {permissionState[action][perm as keyof PermissionState[keyof PermissionState]] && (
-                                  <Check className="w-4 h-4 text-white" />
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                              {isSelected && <Check className="w-4 h-4" />}
+                              <span className="capitalize">{perm.action}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
 
                 {/* Footer Note */}
                 <div className="bg-[#F8F9FA] px-4 py-3 rounded-lg border border-[#EAECF0]">
                   <p className="font-dm-sans text-sm text-[#949394]">
-                    Configure permissions for the {selectedRole || 'selected role'} across different actions.
+                    Selected permissions ({selectedPermissions.length}): Assign specific access levels to this admin across different modules.
                   </p>
                 </div>
               </div>
@@ -405,15 +373,22 @@ const InviteNewAdmin: React.FC<InviteNewAdminProps> = ({
           <div className="px-4 md:px-8 pb-5 sticky bottom-0 bg-white border-t border-[#E8E3E3] pt-5">
             <button
               onClick={handleProceed}
-              disabled={!isFormValid}
-              className="w-full h-10 rounded-full font-dm-sans font-medium text-base text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!isFormValid || isSubmitting || loading}
+              className="w-full h-10 rounded-full font-dm-sans font-medium text-base text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               style={{
-                background: isFormValid
+                background: isFormValid && !isSubmitting && !loading
                   ? 'radial-gradient(50% 50% at 50% 50%, #154751 37%, #04171F 100%)'
                   : 'linear-gradient(0deg, #ACC5CF, #ACC5CF)',
               }}
             >
-              Proceed
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                'Proceed'
+              )}
             </button>
           </div>
         </div>
