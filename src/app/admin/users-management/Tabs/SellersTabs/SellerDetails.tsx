@@ -17,6 +17,7 @@ const SellerDetails = () => {
   const { fullUser, loading, fetchUser } = userDetailsStore();
   const { data: session } = useSession();
   const [showHistory, setShowHistory] = useState(false);
+  const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
 
   useEffect(() => {
     if (modalType === "openSeller" && selectedUser?.id && session?.accessToken) {
@@ -24,6 +25,60 @@ const SellerDetails = () => {
       fetchUser(selectedUser.id, session.accessToken);
     }
   }, [modalType, selectedUser?.id, session?.accessToken, fetchUser]);
+
+  // Download handler
+  const handleDownload = async (fileUrl: string) => {
+    try {
+      setDownloadingFile(fileUrl);
+      
+      console.log("Attempting to download:", fileUrl);
+      
+      // Extract filename from Cloudinary URL
+      const urlParts = fileUrl.split('/');
+      const fileNameWithExt = urlParts[urlParts.length - 1];
+      // Remove any query parameters
+      const fileName = fileNameWithExt.split('?')[0];
+      
+      const response = await fetch(`/api/admin/download-document?url=${encodeURIComponent(fileUrl)}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      console.log("Response status:", response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Download failed:", errorText);
+        throw new Error(errorText || "Download failed");
+      }
+
+      // Create blob from response
+      const blob = await response.blob();
+      console.log("Blob size:", blob.size);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      console.log("Download completed successfully");
+      
+    } catch (error) {
+      console.error("Download error:", error);
+      alert(`Failed to download file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setDownloadingFile(null);
+    }
+  };
 
   if (!selectedUser || modalType !== "openSeller") return null;
 
@@ -216,13 +271,18 @@ const SellerDetails = () => {
                                       <span>Oct 12, 2024</span>
                                     </p>
                                   </div>
-                                  <a
-                                    href={`/uploads/${file}`}
-                                    download
-                                    className="text-[#373737] hover:text-[#154751] transition-colors"
+                                  <button
+                                    onClick={() => handleDownload(file)}
+                                    disabled={downloadingFile === file}
+                                    className="text-[#373737] hover:text-[#154751] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title={downloadingFile === file ? "Downloading..." : "Download file"}
                                   >
-                                    <Download size={19} className="cursor-pointer" />
-                                  </a>
+                                    {downloadingFile === file ? (
+                                      <div className="w-5 h-5 border-2 border-[#154751] border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <Download size={19} className="cursor-pointer" />
+                                    )}
+                                  </button>
                                 </div>
                               </div>
                             ))}
