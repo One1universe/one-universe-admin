@@ -90,7 +90,7 @@ function SetUpContent() {
       setSuccessMessage("Password set successfully! Redirecting to login...");
 
       setTimeout(() => {
-        router.push("/auth/login");
+        router.push("/auth/sign-in");
       }, 1500);
     } catch (error) {
       console.error("Password setup error:", error);
