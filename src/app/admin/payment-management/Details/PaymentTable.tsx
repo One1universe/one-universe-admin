@@ -1,11 +1,14 @@
+// src/components/Details/PaymentTable.tsx
 "use client";
 
 import { useState } from "react";
 import { HiOutlineEye } from "react-icons/hi";
 import { cn } from "@/lib/utils";
 import PaymentDetailsModal from "./PaymentDetailsModal";
+import { paymentService } from "@/services/paymentService";
 
-type Payment = {
+// Shared type — used by both table and page
+export type Payment = {
   id: string;
   serviceTitle: string;
   buyer: string;
@@ -13,6 +16,8 @@ type Payment = {
   totalAmount: string;
   status: "PAID" | "PENDING" | "DISPUTED" | "PENDING REFUND" | "REFUNDED" | "FAILED";
   date: string;
+  buyerUserId?: string | null;
+  sellerUserId?: string | null;
 };
 
 interface PaymentTableProps {
@@ -29,19 +34,45 @@ const statusConfig = {
 };
 
 export default function PaymentTable({ data }: PaymentTableProps) {
-  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const [selectedPaymentDetails, setSelectedPaymentDetails] = useState<any>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
-  const handleOpenDetails = (payment: Payment) => {
-    setSelectedPayment(payment);
+  const handleOpenDetails = async (payment: Payment) => {
+    const userId = payment.buyerUserId || payment.sellerUserId;
+    if (!userId) {
+      alert("Cannot load details: Missing user information");
+      return;
+    }
+
+    setIsLoadingDetails(true);
+    setSelectedPaymentDetails(null);
+
+    try {
+      const response = await paymentService.getUserTransactionHistory(userId);
+
+      if (response.status === "success" && Array.isArray(response.data)) {
+        const match = response.data.find((tx: any) => tx.reference === payment.id);
+        if (match) {
+          setSelectedPaymentDetails(match);
+        } else {
+          alert("Transaction not found in user's history");
+        }
+      } else {
+        alert("Failed to load transaction details");
+      }
+    } catch (error) {
+      console.error("Error loading payment details:", error);
+      alert("Failed to load payment details");
+    } finally {
+      setIsLoadingDetails(false);
+    }
   };
 
-  const handleCloseModal = () => {
-    setSelectedPayment(null);
-  };
+  const handleCloseModal = () => setSelectedPaymentDetails(null);
 
   return (
     <>
-      {/* Desktop Table */}
+      {/* DESKTOP TABLE */}
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-left">
           <thead>
@@ -52,7 +83,7 @@ export default function PaymentTable({ data }: PaymentTableProps) {
               <th className="py-4 px-6">Seller</th>
               <th className="py-4 px-6">Amount</th>
               <th className="py-4 px-6">Status</th>
-              <th className="py-4 px-6">Date</th>
+              <th className="py-4 px-6 min-w-[170px]">Date</th>
               <th className="py-4 px-6 text-center">Action</th>
             </tr>
           </thead>
@@ -62,24 +93,17 @@ export default function PaymentTable({ data }: PaymentTableProps) {
               return (
                 <tr
                   key={payment.id}
-                  className="border-b border-[#E8E3E3] hover:bg-[#FAFAFA] transition-colors cursor-pointer"
-                  onClick={() => handleOpenDetails(payment)}
+                  className="border-b border-[#E8E3E3] hover:bg-gray-50 transition-colors"
                 >
-                  <td className="py-5 px-6">
-                    <span className="font-medium text-[#171417]">{payment.id}</span>
+                  <td className="py-5 px-6 text-sm font-medium text-[#171417] break-all">
+                    {payment.id}
                   </td>
-                  <td className="py-5 px-6">
-                    <p className="text-[#303237] line-clamp-2 max-w-[200px]">
-                      {payment.serviceTitle}
-                    </p>
+                  <td className="py-5 px-6 text-[#303237] line-clamp-2 max-w-[200px]">
+                    {payment.serviceTitle || "N/A"}
                   </td>
-                  <td className="py-5 px-6 text-[#303237]">{payment.buyer}</td>
-                  <td className="py-5 px-6 text-[#303237]">{payment.seller}</td>
-                  <td className="py-5 px-6">
-                    <span className="font-semibold text-[#171417]">
-                      {payment.totalAmount}
-                    </span>
-                  </td>
+                  <td className="py-5 px-6 text-[#303237]">{payment.buyer || "N/A"}</td>
+                  <td className="py-5 px-6 text-[#303237]">{payment.seller || "N/A"}</td>
+                  <td className="py-5 px-6 font-semibold text-[#171417]">{payment.totalAmount}</td>
                   <td className="py-5 px-6">
                     <span
                       className={cn(
@@ -90,21 +114,26 @@ export default function PaymentTable({ data }: PaymentTableProps) {
                       {status.label}
                     </span>
                   </td>
-                  <td className="py-5 px-6 text-[#303237]">
+                  <td className="py-5 px-6 text-[#303237] whitespace-nowrap text-sm font-medium">
                     {payment.date}
                   </td>
-                  <td className="py-5 px-6" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex justify-center">
-                      <button
-                        onClick={() => handleOpenDetails(payment)}
-                        className="p-2 hover:bg-[#E8E3E3] rounded-lg transition-colors group"
-                      >
-                        <HiOutlineEye
-                          size={20}
-                          className="text-[#646264] group-hover:text-[#04171F]"
-                        />
-                      </button>
-                    </div>
+                  <td className="py-5 px-6 text-center">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenDetails(payment);
+                      }}
+                      disabled={!payment.buyerUserId && !payment.sellerUserId}
+                      className="p-2 hover:bg-[#E8E3E3] rounded-lg transition group"
+                    >
+                      <HiOutlineEye
+                        size={20}
+                        className={cn(
+                          "text-[#646264] group-hover:text-[#04171F]",
+                          (!payment.buyerUserId && !payment.sellerUserId) && "opacity-30"
+                        )}
+                      />
+                    </button>
                   </td>
                 </tr>
               );
@@ -113,7 +142,7 @@ export default function PaymentTable({ data }: PaymentTableProps) {
         </table>
       </div>
 
-      {/* Mobile Cards */}
+      {/* MOBILE CARDS */}
       <div className="md:hidden space-y-4 px-4 pb-6">
         {data.map((payment) => {
           const status = statusConfig[payment.status];
@@ -121,19 +150,14 @@ export default function PaymentTable({ data }: PaymentTableProps) {
             <div
               key={payment.id}
               onClick={() => handleOpenDetails(payment)}
-              className="bg-white border border-[#E8E3E3] rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+              className="bg-white border border-[#E8E3E3] rounded-2xl p-5 shadow-sm hover:shadow-md transition cursor-pointer"
             >
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <p className="text-xs text-[#646264] font-medium">Payment ID</p>
-                  <p className="font-semibold text-[#171417]">{payment.id}</p>
+                  <p className="font-semibold text-[#171417] text-sm break-all">{payment.id}</p>
                 </div>
-                <span
-                  className={cn(
-                    "px-3 py-1.5 rounded-full text-xs font-medium",
-                    status.color
-                  )}
-                >
+                <span className={cn("px-3 py-1.5 rounded-full text-xs font-medium", status.color)}>
                   {status.label}
                 </span>
               </div>
@@ -142,38 +166,43 @@ export default function PaymentTable({ data }: PaymentTableProps) {
                 <div>
                   <p className="text-xs text-[#646264]">Service</p>
                   <p className="font-medium text-[#303237] line-clamp-2">
-                    {payment.serviceTitle}
+                    {payment.serviceTitle || "N/A"}
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-[#646264]">Buyer</p>
-                    <p className="text-[#303237]">{payment.buyer}</p>
+                    <p className="text-[#303237] text-sm">{payment.buyer || "N/A"}</p>
                   </div>
                   <div>
                     <p className="text-xs text-[#646264]">Seller</p>
-                    <p className="text-[#303237]">{payment.seller}</p>
+                    <p className="text-[#303237] text-sm">{payment.seller || "N/A"}</p>
                   </div>
                 </div>
 
                 <div className="flex justify-between items-end pt-2 border-t border-[#E8E3E3]">
                   <div>
                     <p className="text-xs text-[#646264]">Amount</p>
-                    <p className="font-bold text-[#171417] text-lg">
-                      {payment.totalAmount}
-                    </p>
+                    <p className="font-bold text-[#171417] text-lg">{payment.totalAmount}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-[#646264]">{payment.date}</span>
+                    <span className="text-xs text-[#646264] whitespace-nowrap">{payment.date}</span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenDetails(payment);
                       }}
+                      disabled={!payment.buyerUserId && !payment.sellerUserId}
                       className="p-2 hover:bg-[#F0F0F0] rounded-lg transition"
                     >
-                      <HiOutlineEye size={20} className="text-[#646264]" />
+                      <HiOutlineEye
+                        size={20}
+                        className={cn(
+                          "text-[#646264]",
+                          (!payment.buyerUserId && !payment.sellerUserId) && "opacity-30"
+                        )}
+                      />
                     </button>
                   </div>
                 </div>
@@ -183,34 +212,13 @@ export default function PaymentTable({ data }: PaymentTableProps) {
         })}
       </div>
 
-      {/* Payment Details Modal */}
-      {selectedPayment && (
+      {/* MODAL */}
+      {(isLoadingDetails || selectedPaymentDetails) && (
         <PaymentDetailsModal
           isOpen={true}
           onClose={handleCloseModal}
-          payment={{
-            id: selectedPayment.id,
-            serviceTitle: selectedPayment.serviceTitle,
-            buyer: {
-              name: selectedPayment.buyer,
-              email: "jane.adebayo@example.com",
-              phone: "+234 801 234 5678",
-            },
-            seller: {
-              name: selectedPayment.seller,
-              email: "seller@example.com",
-              phone: "+234 809 876 5432",
-            },
-            amount: selectedPayment.totalAmount,
-            status: selectedPayment.status,
-            bookingId: "#BKG-10219",
-            bookingStatus: "Cancelled",
-            jobStatus: "Cancelled",
-            businessName: "Doe Cleaning Services",
-            services: "Cleaning Services",
-            location: "Lekki Phase 1, Lagos",
-            date: "1/15/2024, 10:00:00 AM",
-          }}
+          payment={selectedPaymentDetails}
+          isLoading={isLoadingDetails}
         />
       )}
     </>
