@@ -7,7 +7,7 @@ const EmptyApprovedService = () => {
       <div className="w-[439px] h-[206px] flex flex-col gap-[2rem] items-center justify-center">
         <Image
           alt="service"
-          src={"/empty/empty-state.svg"}
+          src={"/empty/empty-state.png"}
           width={150}
           height={150}
           className="w-[150px] lg:h-[150px] object-cover"

@@ -1,50 +1,22 @@
-// ./Tabs/PendingTabs/PendingTable.tsx
+// components/tables/ApprovedTable.tsx
 import React, { useState } from "react";
-import { Check, X, Clock, ChevronDown } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { Service } from "@/services/serviceManagement";
-import ApprovalModal from "../../Modal/ApprovalModal";
-import RejectionModal from "../../Modal/RejectionModal";
 
-interface PendingTableProps {
+interface ApprovedTableProps {
   services: Service[];
-  selectedServices: string[]; // now contains service.id strings
+  selectedServices: string[]; // contains service.id strings
   onToggleService: (id: string) => void;
   onToggleAll: () => void;
-  onApprove?: (service: Service) => void | Promise<void>;
-  onReject?: (service: Service, reason: string) => void | Promise<void>;
 }
 
-export default function PendingTable({
+export default function ApprovedTable({
   services,
   selectedServices,
   onToggleService,
   onToggleAll,
-  onApprove,
-  onReject,
-}: PendingTableProps) {
+}: ApprovedTableProps) {
   const [expandedService, setExpandedService] = useState<string | null>(null);
-
-  const [approvalModal, setApprovalModal] = useState<{
-    isOpen: boolean;
-    serviceName: string;
-    providerName: string;
-    service?: Service;
-  }>({
-    isOpen: false,
-    serviceName: "",
-    providerName: "",
-  });
-
-  const [rejectionModal, setRejectionModal] = useState<{
-    isOpen: boolean;
-    serviceName: string;
-    providerName: string;
-    service?: Service;
-  }>({
-    isOpen: false,
-    serviceName: "",
-    providerName: "",
-  });
 
   const getInitials = (name: string) => {
     return name
@@ -64,40 +36,7 @@ export default function PendingTable({
       "bg-pink-500",
       "bg-indigo-500",
     ];
-    const index = name.length % colors.length;
-    return colors[index];
-  };
-
-  const handleApproveClick = (service: Service, providerName: string) => {
-    setApprovalModal({
-      isOpen: true,
-      serviceName: service.title,
-      providerName,
-      service,
-    });
-  };
-
-  const handleConfirmApproval = async () => {
-    if (onApprove && approvalModal.service) {
-      await onApprove(approvalModal.service);
-    }
-    setApprovalModal({ isOpen: false, serviceName: "", providerName: "" });
-  };
-
-  const handleRejectClick = (service: Service, providerName: string) => {
-    setRejectionModal({
-      isOpen: true,
-      serviceName: service.title,
-      providerName,
-      service,
-    });
-  };
-
-  const handleConfirmRejection = async (reason: string) => {
-    if (onReject && rejectionModal.service) {
-      await onReject(rejectionModal.service, reason);
-    }
-    setRejectionModal({ isOpen: false, serviceName: "", providerName: "" });
+    return colors[name.length % colors.length];
   };
 
   return (
@@ -110,7 +49,10 @@ export default function PendingTable({
               <th className="text-left py-4 px-6 w-12">
                 <input
                   type="checkbox"
-                  checked={selectedServices.length === services.length && services.length > 0}
+                  checked={
+                    selectedServices.length === services.length &&
+                    services.length > 0
+                  }
                   onChange={onToggleAll}
                   className="w-5 h-5 rounded border-gray-300 cursor-pointer"
                 />
@@ -119,16 +61,13 @@ export default function PendingTable({
                 Seller
               </th>
               <th className="text-left py-4 px-6 text-sm font-medium text-gray-600">
-                Submitted Service
+                Approved Service
               </th>
               <th className="text-left py-4 px-6 text-sm font-medium text-gray-600">
-                Submitted On
+                Approved On
               </th>
               <th className="text-left py-4 px-6 text-sm font-medium text-gray-600">
                 Status
-              </th>
-              <th className="text-left py-4 px-6 text-sm font-medium text-gray-600">
-                Action
               </th>
             </tr>
           </thead>
@@ -184,27 +123,9 @@ export default function PendingTable({
                     })}
                   </td>
                   <td className="py-4 px-6">
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-100 rounded-full">
-                      <Clock size={14} className="text-orange-600" />
-                      <span className="text-sm text-orange-700">Pending</span>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleApproveClick(service, displayName)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-medium transition-colors"
-                      >
-                        <Check size={16} />
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleRejectClick(service, displayName)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
-                      >
-                        <X size={16} />
-                        Reject
-                      </button>
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-100 rounded-full">
+                      <Check size={14} className="text-green-600" />
+                      <span className="text-sm text-green-700">Approved</span>
                     </div>
                   </td>
                 </tr>
@@ -258,9 +179,9 @@ export default function PendingTable({
                   )}
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-orange-100 rounded-full">
-                    <Clock size={12} className="text-orange-600" />
-                    <span className="text-xs text-orange-700">Pending</span>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-100 rounded-full">
+                    <Check size={12} className="text-green-600" />
+                    <span className="text-xs text-green-700">Approved</span>
                   </div>
                   <ChevronDown
                     size={20}
@@ -272,65 +193,31 @@ export default function PendingTable({
               </div>
 
               {isExpanded && (
-                <div className="px-4 pb-4 space-y-3 border-t border-gray-100">
-                  <div className="text-sm text-gray-700">
-                    <p>
-                      <strong>Submitted:</strong>{" "}
-                      {new Date(service.createdAt).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
+                <div className="px-4 pb-4 space-y-2 border-t border-gray-100">
+                  <p className="text-sm text-gray-700">
+                    <strong>Approved on:</strong>{" "}
+                    {new Date(service.createdAt).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </p>
+                  {email && (
+                    <p className="text-sm text-gray-700">
+                      <strong>Email:</strong> {email}
                     </p>
-                    {email && (
-                      <p className="mt-1">
-                        <strong>Email:</strong> {email}
-                      </p>
-                    )}
-                    {phone && (
-                      <p>
-                        <strong>Phone:</strong> {phone}
-                      </p>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={() => handleApproveClick(service, displayName)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    <Check size={16} />
-                    Approve
-                  </button>
-                  <button
-                    onClick={() => handleRejectClick(service, displayName)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    <X size={16} />
-                    Reject
-                  </button>
+                  )}
+                  {phone && (
+                    <p className="text-sm text-gray-700">
+                      <strong>Phone:</strong> {phone}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
           );
         })}
       </div>
-
-      {/* Modals */}
-      <ApprovalModal
-        isOpen={approvalModal.isOpen}
-        onClose={() => setApprovalModal({ isOpen: false, serviceName: "", providerName: "" })}
-        onConfirm={handleConfirmApproval}
-        serviceName={approvalModal.serviceName}
-        providerName={approvalModal.providerName}
-      />
-
-      <RejectionModal
-        isOpen={rejectionModal.isOpen}
-        onClose={() => setRejectionModal({ isOpen: false, serviceName: "", providerName: "" })}
-        onConfirm={handleConfirmRejection}
-        serviceName={rejectionModal.serviceName}
-        providerName={rejectionModal.providerName}
-      />
     </>
   );
 }
