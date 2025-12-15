@@ -26,7 +26,7 @@ const ConfirmModal = ({ type, isOpen, onConfirm, onCancel }: ConfirmModalProps) 
       icon: <Trash2 size={32} className="text-[#D84040]" />,
       mobileIcon: <Trash2 size={28} className="text-[#D84040]" />,
       confirmText: "Delete",
-      confirmClass: "bg-[#D84040]",
+      confirmClass: "bg-[#D84040] hover:bg-[#c03838]",
     },
     resolve: {
       title: "Resolve Support Ticket",
@@ -36,22 +36,51 @@ const ConfirmModal = ({ type, isOpen, onConfirm, onCancel }: ConfirmModalProps) 
       icon: <CheckCircle size={32} className="text-[#154751]" />,
       mobileIcon: <CheckCircle size={28} className="text-[#154751]" />,
       confirmText: "Resolve",
-      confirmClass: "bg-gradient-to-br from-[#154751] to-[#04171F]",
+      confirmClass: "bg-gradient-to-br from-[#154751] to-[#04171F] hover:opacity-90",
     },
   };
 
   const { title, message, warning, iconBg, icon, mobileIcon, confirmText, confirmClass } = config[type];
 
+  // Explicit handlers that log and call callbacks
+  const handleConfirmClick = (e: React.MouseEvent) => {
+    console.log("🎯 Confirm button clicked in modal");
+    e.preventDefault();
+    e.stopPropagation();
+    onConfirm();
+  };
+
+  const handleCancelClick = (e: React.MouseEvent) => {
+    console.log("❌ Cancel button clicked in modal");
+    e.preventDefault();
+    e.stopPropagation();
+    onCancel();
+  };
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    console.log("🖱️ Backdrop clicked");
+    e.preventDefault();
+    e.stopPropagation();
+    onCancel();
+  };
+
   return (
     <>
       {/* DESKTOP */}
-      <div className="hidden md:fixed md:inset-0 md:z-[300] md:flex md:items-center md:justify-center md:p-4">
-        <div 
-          className="absolute inset-0" 
-          onClick={onCancel}
-          style={{ background: "rgba(0,0,0,0.05)" }}
-        />
- Twist        <div className="relative bg-white rounded-lg shadow-2xl w-full max-w-[633px] p-8">
+      <div 
+        className="hidden md:fixed md:inset-0 md:z-[999] md:flex md:items-center md:justify-center md:p-4"
+        onClick={handleBackdropClick}
+        role="dialog"
+        aria-modal="true"
+      >
+        {/* Backdrop */}
+        <div className="absolute inset-0 bg-black/40" />
+
+        {/* Modal Card */}
+        <div
+          className="relative bg-white rounded-2xl shadow-2xl w-full max-w-[633px] p-10"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="flex flex-col items-center gap-8 text-center">
             <div className={`w-20 h-20 rounded-full ${iconBg} flex items-center justify-center p-4`}>
               {icon}
@@ -59,15 +88,15 @@ const ConfirmModal = ({ type, isOpen, onConfirm, onCancel }: ConfirmModalProps) 
 
             <div className="space-y-4">
               <h2 className="font-dm-sans font-bold text-2xl text-[#171417]">{title}</h2>
-              <p className="font-dm-sans text-base text-[#171417] max-w-md">{message}</p>
+              <p className="font-dm-sans text-base text-[#171417] max-w-md mx-auto">{message}</p>
               <p className="font-dm-sans text-sm text-[#454345]">{warning}</p>
             </div>
 
-            <div className="flex gap-8 w-full max-w-md">
-              {/* Cancel Button */}
+            <div className="flex gap-6 w-full max-w-md">
               <button
-                onClick={onCancel}
-                className="flex-1 py-4 px-6 rounded-2xl border-2 font-dm-sans font-medium text-base text-[#154751]"
+                type="button"
+                onClick={handleCancelClick}
+                className="flex-1 py-4 px-6 rounded-2xl border-2 font-dm-sans font-medium text-base text-[#154751] hover:bg-gray-50 transition"
                 style={{
                   borderImage: "linear-gradient(to right, #154751, #04171F) 1",
                   borderImageSlice: 1,
@@ -76,10 +105,10 @@ const ConfirmModal = ({ type, isOpen, onConfirm, onCancel }: ConfirmModalProps) 
                 Cancel
               </button>
 
-              {/* Confirm Button - FIXED: Use className instead of style */}
               <button
-                onClick={onConfirm}
-                className={`flex-1 py-4 px-6 rounded-2xl font-dm-sans font-medium text-base text-white ${confirmClass}`}
+                type="button"
+                onClick={handleConfirmClick}
+                className={`flex-1 py-4 px-6 rounded-2xl font-dm-sans font-medium text-base text-white transition ${confirmClass}`}
               >
                 {confirmText}
               </button>
@@ -89,14 +118,18 @@ const ConfirmModal = ({ type, isOpen, onConfirm, onCancel }: ConfirmModalProps) 
       </div>
 
       {/* MOBILE */}
-      <div className="md:hidden fixed inset-0 z-[300] flex items-end">
-        <div 
-          className="absolute inset-0" 
-          onClick={onCancel}
-          style={{ background: "rgba(0,0,0,0.05)" }}
-        />
-        <div 
-          className="relative w-full bg-white rounded-t-2xl shadow-2xl p-6 max-h-[90vh] animate-slide-up"
+      <div 
+        className="md:hidden fixed inset-0 z-[999] flex items-end"
+        onClick={handleBackdropClick}
+        role="dialog"
+        aria-modal="true"
+      >
+        {/* Backdrop */}
+        <div className="absolute inset-0 bg-black/50" />
+
+        {/* Bottom Sheet */}
+        <div
+          className="relative w-full bg-white rounded-t-3xl shadow-2xl p-8 pb-12 animate-slide-up"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex flex-col items-center gap-6 text-center">
@@ -112,8 +145,9 @@ const ConfirmModal = ({ type, isOpen, onConfirm, onCancel }: ConfirmModalProps) 
 
             <div className="w-full space-y-4 pt-4">
               <button
-                onClick={onCancel}
-                className="w-full py-4 rounded-2xl border-2 font-dm-sans font-medium text-base text-[#154751]"
+                type="button"
+                onClick={handleCancelClick}
+                className="w-full py-4 rounded-2xl border-2 font-dm-sans font-medium text-base text-[#154751] hover:bg-gray-50"
                 style={{
                   borderImage: "linear-gradient(to right, #154751, #04171F) 1",
                   borderImageSlice: 1,
@@ -122,10 +156,10 @@ const ConfirmModal = ({ type, isOpen, onConfirm, onCancel }: ConfirmModalProps) 
                 Cancel
               </button>
 
-              {/* Confirm Button - FIXED: Use className */}
               <button
-                onClick={onConfirm}
-                className={`w-full py-4 rounded-2xl font-dm-sans font-medium text-base text-white ${confirmClass}`}
+                type="button"
+                onClick={handleConfirmClick}
+                className={`w-full py-4 rounded-2xl font-dm-sans font-medium text-base text-white transition ${confirmClass}`}
               >
                 {confirmText}
               </button>
@@ -139,7 +173,9 @@ const ConfirmModal = ({ type, isOpen, onConfirm, onCancel }: ConfirmModalProps) 
           from { transform: translateY(100%); }
           to { transform: translateY(0); }
         }
-        .animate-slide-up { animation: slide-up 0.35s ease-out; }
+        .animate-slide-up {
+          animation: slide-up 0.35s ease-out;
+        }
       `}</style>
     </>
   );

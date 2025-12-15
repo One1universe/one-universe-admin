@@ -1,25 +1,40 @@
 "use client";
 
 import React, { useState } from "react";
-import { Star } from "lucide-react";
+import { Star, X, Check } from "lucide-react";
+import { appRatingsStore } from "@/store/appRatingsStore";
 
 interface ReviewResponseModalProps {
   isOpen: boolean;
   onClose: () => void;
+  ratingId: string;
   review: {
+    id: string;
     username: string;
     userRole: string;
     rating: number;
     text: string;
     date: string;
+    hasReply?: boolean;
+    existingReply?: string | null;
   };
 }
 
-const ReviewResponseModal = ({ isOpen, onClose, review }: ReviewResponseModalProps) => {
-  const [reply, setReply] = useState("");
+const ReviewResponseModal = ({ isOpen, onClose, ratingId, review }: ReviewResponseModalProps) => {
+  const [reply, setReply] = useState(review.existingReply || "");
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const { replyingToRating, replyToRating } = appRatingsStore();
+
   const isActive = reply.trim().length > 0;
 
   if (!isOpen) return null;
+
+  const showToast = (type: "success" | "error", message: string) => {
+    console.log(`🔔 Toast: [${type.toUpperCase()}] ${message}`);
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -31,8 +46,49 @@ const ReviewResponseModal = ({ isOpen, onClose, review }: ReviewResponseModalPro
     ));
   };
 
+  const handleSendReply = async () => {
+    if (!reply.trim()) {
+      showToast("error", "Please enter a reply");
+      return;
+    }
+
+    console.log("💬 Sending reply to rating:", ratingId);
+
+    const success = await replyToRating(ratingId, reply.trim());
+
+    if (success) {
+      showToast("success", "Reply sent successfully!");
+      setTimeout(() => {
+        onClose();
+      }, 800);
+    } else {
+      showToast("error", "Failed to send reply. Please try again.");
+    }
+  };
+
   return (
     <>
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-4 right-4 z-[9999] animate-slide-in">
+          <div className={`flex items-center gap-3 px-5 py-3 rounded-xl shadow-lg border ${
+            toast.type === "success" ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"
+          }`}>
+            {toast.type === "success" ? (
+              <Check className="w-5 h-5 text-green-700" />
+            ) : (
+              <X className="w-5 h-5 text-red-700" />
+            )}
+            <p className={`font-medium text-sm ${toast.type === "success" ? "text-green-800" : "text-red-800"}`}>
+              {toast.message}
+            </p>
+            <button onClick={() => setToast(null)}>
+              <X className="w-4 h-4 opacity-70" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* DESKTOP */}
       <div className="hidden md:fixed md:inset-0 md:z-[200] md:flex md:items-center md:justify-center md:p-4">
         <div className="absolute inset-0" onClick={onClose} style={{ background: "rgba(0,0,0,0.05)" }} />
@@ -67,34 +123,40 @@ const ReviewResponseModal = ({ isOpen, onClose, review }: ReviewResponseModalPro
               <p className="font-dm-sans text-base text-[#171417] leading-relaxed">{review.text}</p>
             </div>
 
+            {/* Existing Reply (if any) */}
+            {review.existingReply && (
+              <div className="bg-[#E8FBF7] border border-[#1FC16B] rounded-xl p-4">
+                <p className="font-dm-sans font-medium text-base text-[#154751] mb-2">Admin Reply</p>
+                <p className="font-dm-sans text-base text-[#171417]">{review.existingReply}</p>
+              </div>
+            )}
+
             {/* Reply Box */}
             <div className="space-y-3">
-              <label className="font-dm-sans font-medium text-base text-[#171417]">Reply (optional)</label>
+              <label className="font-dm-sans font-medium text-base text-[#171417]">
+                {review.hasReply ? "Edit Reply" : "Reply (optional)"}
+              </label>
               <textarea
                 value={reply}
                 onChange={(e) => setReply(e.target.value)}
                 placeholder="Type your response here..."
-                className="w-full h-32 border border-[#B2B2B4] rounded-xl px-4 py-3 font-dm-sans text-base placeholder:text-[#B2B2B4] focus:outline-none focus:border-[#154751] resize-none"
+                className="w-full h-32 border border-[#B2B2B4] rounded-xl px-4 py-3 font-dm-sans text-base placeholder:text-[#B2B2B4] focus:outline-none focus:border-[#154751] resize-none disabled:bg-gray-50"
+                disabled={replyingToRating}
               />
             </div>
 
             {/* Send Button */}
             <div className="flex justify-end">
               <button
-                onClick={() => {
-                  if (reply.trim()) {
-                    alert("Reply sent!");
-                    onClose();
-                  }
-                }}
-                disabled={!isActive}
+                onClick={handleSendReply}
+                disabled={!isActive || replyingToRating}
                 className={`px-8 py-4 rounded-[36px] font-dm-sans font-medium text-base transition-all ${
-                  isActive
+                  isActive && !replyingToRating
                     ? "bg-gradient-to-br from-[#154751] to-[#04171F] text-white hover:opacity-90"
                     : "bg-[#ACC5CF] text-[#FFFEFE] cursor-not-allowed"
                 }`}
               >
-                Send Reply
+                {replyingToRating ? "Sending..." : "Send Reply"}
               </button>
             </div>
           </div>
@@ -104,7 +166,7 @@ const ReviewResponseModal = ({ isOpen, onClose, review }: ReviewResponseModalPro
       {/* MOBILE - Bottom Sheet */}
       <div className="md:hidden fixed inset-0 z-[200] flex items-end">
         <div className="absolute inset-0" onClick={onClose} style={{ background: "rgba(0,0,0,0.05)" }} />
-        <div 
+        <div
           className="relative w-full bg-white rounded-t-2xl shadow-2xl max-h-[90vh] overflow-y-auto animate-slide-up"
           onClick={(e) => e.stopPropagation()}
         >
@@ -136,33 +198,39 @@ const ReviewResponseModal = ({ isOpen, onClose, review }: ReviewResponseModalPro
               <p className="font-dm-sans text-base text-[#171417] leading-relaxed">{review.text}</p>
             </div>
 
+            {/* Existing Reply (if any) */}
+            {review.existingReply && (
+              <div className="bg-[#E8FBF7] border border-[#1FC16B] rounded-xl p-4">
+                <p className="font-dm-sans font-medium text-base text-[#154751] mb-2">Admin Reply</p>
+                <p className="font-dm-sans text-base text-[#171417]">{review.existingReply}</p>
+              </div>
+            )}
+
             {/* Reply */}
             <div className="space-y-3">
-              <label className="font-dm-sans font-medium text-base text-[#171417]">Reply (optional)</label>
+              <label className="font-dm-sans font-medium text-base text-[#171417]">
+                {review.hasReply ? "Edit Reply" : "Reply (optional)"}
+              </label>
               <textarea
                 value={reply}
                 onChange={(e) => setReply(e.target.value)}
                 placeholder="Type your response here..."
-                className="w-full h-32 border border-[#B2B2B4] rounded-xl px-4 py-3 font-dm-sans text-base placeholder:text-[#B2B2B4] focus:outline-none focus:border-[#154751] resize-none"
+                className="w-full h-32 border border-[#B2B2B4] rounded-xl px-4 py-3 font-dm-sans text-base placeholder:text-[#B2B2B4] focus:outline-none focus:border-[#154751] resize-none disabled:bg-gray-50"
+                disabled={replyingToRating}
               />
             </div>
 
             {/* Send Button */}
             <button
-              onClick={() => {
-                if (reply.trim()) {
-                  alert("Reply sent!");
-                  onClose();
-                }
-              }}
-              disabled={!isActive}
+              onClick={handleSendReply}
+              disabled={!isActive || replyingToRating}
               className={`w-full py-4 rounded-[36px] font-dm-sans font-medium text-base transition-all ${
-                isActive
+                isActive && !replyingToRating
                   ? "bg-gradient-to-br from-[#154751] to-[#04171F] text-white"
                   : "bg-[#ACC5CF] text-[#FFFEFE]"
               }`}
             >
-              Send Reply
+              {replyingToRating ? "Sending..." : "Send Reply"}
             </button>
           </div>
         </div>

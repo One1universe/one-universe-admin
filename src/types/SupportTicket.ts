@@ -1,12 +1,19 @@
-export type SupportTicket = {
+// src/types/SupportTicket.ts
+export type SupportTicketStatus = "New" | "In Progress" | "Resolved";
+export type SupportTicketApiStatus = "NEW" | "IN_PROGRESS" | "RESOLVED";
+
+export interface SupportTicket {
   id: string;
   ticketId: string;
   username: string;
+  userRole?: string;
   subject: string;
-  userRole: string;
   description: string;
-  attachments?: { name: string; size: string }[];
-  priority?: "Low" | "Medium" | "High";
-  status: "New" | "In Progress" | "Resolved";
+  status: SupportTicketStatus;
+  originalStatus?: SupportTicketApiStatus; // Add this for API status
   submittedDate: string;
-};
+  attachments?: {
+    name: string;
+    size: string;
+  }[];
+}

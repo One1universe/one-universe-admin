@@ -1,50 +1,73 @@
 "use client";
 
-import React, { useState } from "react";
-import { SupportTicket } from "@/types/SupportTicket";
+import React, { useState, useEffect, useMemo } from "react";
+import { supportTicketStore } from "@/store/supportTicketStore";
+import { SupportTicketStatus } from "@/services/supportService";
 import ActionMenu from "../../components/tickets/ActionMenu";
 import StatusIcon from "../../components/tickets/StatusIcon";
 import TicketDetailView from "./TicketDetailView";
-import EmptyState from "../../EmptyState"; // ← Your smart empty state
+import EmptyState from "../../EmptyState";
 
-const SupportTicketsTable = () => {
+interface SupportTicketsTableProps {
+  searchQuery: string;
+  selectedStatuses: string[];
+}
+
+const SupportTicketsTable = ({ searchQuery, selectedStatuses }: SupportTicketsTableProps) => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
-  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [currentStatus, setCurrentStatus] = useState<SupportTicketStatus | undefined>(undefined);
 
-  const tickets: SupportTicket[] = [
-    {
-      id: "1",
-      ticketId: "#4685",
-      username: "Wade Warren",
-      userRole: "Buyer",
-      subject: "Unable to upload profile picture",
-      description: "I keep getting an error when trying to upload my profile picture.",
-      status: "Resolved",
-      submittedDate: "12, May 2025",
-    },
-    {
-      id: "2",
-      ticketId: "#4684",
-      username: "Sarah Smith",
-      userRole: "Seller",
-      subject: "Payment processing error",
-      description: "Payment failed during checkout with error code 503.",
-      status: "In Progress",
-      submittedDate: "Nov 30, 2024",
-    },
-    {
-      id: "3",
-      ticketId: "#4683",
-      username: "Mike Jones",
-      userRole: "Buyer",
-      subject: "Account verification issue",
-      description: "I never received the verification email after signing up.",
-      status: "New",
-      submittedDate: "Nov 29, 2024",
-      attachments: [{ name: "Screenshot.png", size: "200 KB" }],
-    },
-  ];
+  // Get state from store
+  const {
+    tickets,
+    ticketsLoading,
+    ticketsError,
+    selectedTicket,
+    currentPage,
+    totalPages,
+    totalTickets,
+    fetchTickets,
+    setSelectedTicket,
+  } = supportTicketStore();
+
+  // Map UI status names to API status values and update currentStatus
+  useEffect(() => {
+    const apiStatuses = selectedStatuses
+      .map(status => {
+        if (status === "New") return "NEW" as SupportTicketStatus;
+        if (status === "In Progress") return "IN_PROGRESS" as SupportTicketStatus;
+        if (status === "Resolved") return "RESOLVED" as SupportTicketStatus;
+        return null;
+      })
+      .filter((s): s is SupportTicketStatus => s !== null);
+
+    setCurrentStatus(apiStatuses.length > 0 ? apiStatuses[0] : undefined);
+  }, [selectedStatuses]);
+
+  // Fetch tickets when filters change
+  useEffect(() => {
+    console.log("📋 Fetching tickets with filters:", { 
+      searchQuery, 
+      selectedStatuses,
+      status: currentStatus, 
+      page: 1 
+    });
+    
+    fetchTickets(1, 10, currentStatus);
+  }, [currentStatus, fetchTickets]);
+
+  // Client-side filtering for search (if backend doesn't support it)
+  const filteredTickets = useMemo(() => {
+    if (!searchQuery) return tickets;
+
+    const query = searchQuery.toLowerCase();
+    return tickets.filter(ticket => 
+      ticket.ticketId?.toLowerCase().includes(query) ||
+      ticket.email?.toLowerCase().includes(query) ||
+      ticket.subject?.toLowerCase().includes(query)
+    );
+  }, [tickets, searchQuery]);
 
   const handleActionClick = (
     ticketId: string,
@@ -71,26 +94,76 @@ const SupportTicketsTable = () => {
     setOpenMenuId(prev => prev === ticketId ? null : ticketId);
   };
 
-  const openTicketDetail = (ticket: SupportTicket) => {
+  const openTicketDetail = (ticket: any) => {
     setSelectedTicket(ticket);
     setOpenMenuId(null);
   };
 
-  const getStatusStyles = (status: SupportTicket["status"]) => {
+  // Map API response to UI format for ActionMenu compatibility
+  const mapTicketForUI = (ticket: any) => ({
+    ...ticket,
+    username: ticket.email,
+    userRole: "User",
+    submittedDate: formatDate(ticket.createdAt),
+    originalStatus: ticket.status,
+    status: ticket.status === "RESOLVED" ? "Resolved" : ticket.status === "IN_PROGRESS" ? "In Progress" : "New",
+    attachments: ticket.screenshotUrls?.length > 0 
+      ? ticket.screenshotUrls.map((url: string, idx: number) => ({
+          name: `Attachment ${idx + 1}`,
+          size: "Unknown"
+        }))
+      : undefined
+  });
+
+  const getStatusStyles = (status: string) => {
     switch (status) {
-      case "Resolved": return "bg-[#E0F5E6] text-[#1FC16B]";
-      case "In Progress": return "bg-[#D3E1FF] text-[#007BFF]";
-      case "New": return "bg-[#FFF2B9] text-[#9D7F04]";
+      case "RESOLVED": return "bg-[#E0F5E6] text-[#1FC16B]";
+      case "IN_PROGRESS": return "bg-[#D3E1FF] text-[#007BFF]";
+      case "NEW": return "bg-[#FFF2B9] text-[#9D7F04]";
       default: return "";
     }
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", { 
+      year: "numeric", 
+      month: "short", 
+      day: "numeric" 
+    });
+  };
+
   const openTicket = openMenuId ? tickets.find(t => t.id === openMenuId) : null;
+  const mappedOpenTicket = openTicket ? mapTicketForUI(openTicket) : null;
+
+  // Loading state
+  if (ticketsLoading && tickets.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#154751]"></div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (ticketsError) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-600 font-dm-sans text-base">{ticketsError}</p>
+        <button
+          onClick={() => fetchTickets(1, 10, currentStatus)}
+          className="mt-4 px-6 py-2 bg-[#154751] text-white rounded-lg hover:opacity-90"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>
       {/* === CONTENT WHEN THERE ARE TICKETS === */}
-      {tickets.length > 0 ? (
+      {filteredTickets.length > 0 ? (
         <>
           {/* Desktop Table */}
           <div className="hidden md:block w-full overflow-x-auto">
@@ -98,7 +171,7 @@ const SupportTicketsTable = () => {
               <thead>
                 <tr className="bg-[#FFFCFC] border-b border-[#E5E5E5]">
                   <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264]">Ticket ID</th>
-                  <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264]">Username</th>
+                  <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264]">Email</th>
                   <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264]">Subject</th>
                   <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264]">Status</th>
                   <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264]">Submitted Date</th>
@@ -106,18 +179,18 @@ const SupportTicketsTable = () => {
                 </tr>
               </thead>
               <tbody>
-                {tickets.map((ticket) => (
+                {filteredTickets.map((ticket) => (
                   <tr key={ticket.id} className="bg-white border-b border-[#E5E5E5] hover:bg-[#FAFAFA]">
                     <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">{ticket.ticketId}</td>
-                    <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">{ticket.username}</td>
+                    <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">{ticket.email}</td>
                     <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237] max-w-[300px] truncate">{ticket.subject}</td>
                     <td className="py-[18px] px-[25px]">
                       <div className={`inline-flex items-center gap-[6px] px-2 py-1 rounded-lg ${getStatusStyles(ticket.status)}`}>
-                        <StatusIcon status={ticket.status} />
-                        <span className="font-dm-sans text-sm">{ticket.status}</span>
+                        <StatusIcon status={ticket.status === "RESOLVED" ? "Resolved" : ticket.status === "IN_PROGRESS" ? "In Progress" : "New"} />
+                        <span className="font-dm-sans text-sm">{ticket.status.replace("_", " ")}</span>
                       </div>
                     </td>
-                    <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">{ticket.submittedDate}</td>
+                    <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">{formatDate(ticket.createdAt)}</td>
                     <td className="py-[18px] px-[25px]">
                       <button
                         onClick={(e) => handleActionClick(ticket.id, e)}
@@ -138,15 +211,15 @@ const SupportTicketsTable = () => {
 
           {/* Mobile Cards */}
           <div className="md:hidden space-y-4 p-4">
-            {tickets.map((ticket) => (
+            {filteredTickets.map((ticket) => (
               <div key={ticket.id} className="bg-white border border-[#E8E3E3] rounded-lg p-4 shadow-sm">
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-dm-sans font-medium text-base text-[#303237]">{ticket.username}</span>
+                      <span className="font-dm-sans font-medium text-base text-[#303237]">{ticket.email}</span>
                       <span className="font-dm-sans text-sm text-[#454345]">{ticket.ticketId}</span>
                     </div>
-                    <p className="font-dm-sans text-sm text-[#454345]">{ticket.submittedDate}</p>
+                    <p className="font-dm-sans text-sm text-[#454345]">{formatDate(ticket.createdAt)}</p>
                   </div>
                   <button
                     onClick={(e) => handleActionClick(ticket.id, e)}
@@ -161,12 +234,35 @@ const SupportTicketsTable = () => {
                 </div>
                 <p className="font-dm-sans text-sm text-[#303237] mb-3">{ticket.subject}</p>
                 <div className={`inline-flex items-center gap-[6px] px-2 py-1 rounded-lg ${getStatusStyles(ticket.status)}`}>
-                  <StatusIcon status={ticket.status} />
-                  <span className="font-dm-sans text-sm">{ticket.status}</span>
+                  <StatusIcon status={ticket.status === "RESOLVED" ? "Resolved" : ticket.status === "IN_PROGRESS" ? "In Progress" : "New"} />
+                  <span className="font-dm-sans text-sm">{ticket.status.replace("_", " ")}</span>
                 </div>
               </div>
             ))}
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 mt-6">
+              <button
+                onClick={() => fetchTickets(currentPage - 1, 10, currentStatus)}
+                disabled={currentPage === 1 || ticketsLoading}
+                className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              >
+                Previous
+              </button>
+              <span className="font-dm-sans text-sm text-[#303237]">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => fetchTickets(currentPage + 1, 10, currentStatus)}
+                disabled={currentPage === totalPages || ticketsLoading}
+                className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </>
       ) : (
         /* === EMPTY STATE === */
@@ -174,9 +270,9 @@ const SupportTicketsTable = () => {
       )}
 
       {/* Action Menu */}
-      {openTicket && (
+      {mappedOpenTicket && (
         <ActionMenu
-          ticket={openTicket}
+          ticket={mappedOpenTicket}
           isOpen={true}
           onClose={() => setOpenMenuId(null)}
           position={menuPosition}
@@ -186,7 +282,10 @@ const SupportTicketsTable = () => {
 
       {/* Ticket Detail Modal */}
       {selectedTicket && (
-        <TicketDetailView ticket={selectedTicket} onClose={() => setSelectedTicket(null)} />
+        <TicketDetailView 
+          ticket={selectedTicket} 
+          onClose={() => setSelectedTicket(null)} 
+        />
       )}
     </>
   );

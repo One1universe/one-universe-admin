@@ -1,37 +1,38 @@
 "use client";
 
 import React, { useState } from "react";
-import { SupportTicket } from "@/types/SupportTicket";
+import { supportTicketStore } from "@/store/supportTicketStore";
+import { SupportTicketResponse } from "@/services/supportService";
 
 interface TicketDetailViewProps {
-  ticket: SupportTicket;
+  ticket: SupportTicketResponse;
   onClose: () => void;
 }
 
 const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
   const [response, setResponse] = useState("");
-  const [adminResponses, setAdminResponses] = useState<string[]>([]);
+  const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
+  
+  const { respondToTicket, markAsResolved, respondingToTicket, respondError } = supportTicketStore();
 
-  const userResponses = [ticket.description || "No initial message from user."];
-
-  const getStatusStyles = (status: SupportTicket["status"]) => {
+  const getStatusStyles = (status: string) => {
     switch (status) {
-      case "Resolved": return "bg-[#E0F5E6] text-[#1FC16B]";
-      case "In Progress": return "bg-[#D3E1FF] text-[#007BFF]";
-      case "New": return "bg-[#FFF2B9] text-[#9D7F04]";
-      default: return "";
+      case "RESOLVED": return "bg-[#E0F5E6] text-[#1FC16B] border border-[#1FC16B]";
+      case "IN_PROGRESS": return "bg-[#D3E1FF] text-[#007BFF] border border-[#007BFF]";
+      case "NEW": return "bg-[#FFF2B9] text-[#9D7F04] border border-[#9D7F04]";
+      default: return "bg-gray-100 text-gray-600 border border-gray-300";
     }
   };
 
-  const StatusIcon = ({ status }: { status: SupportTicket["status"] }) => {
-    if (status === "Resolved") {
+  const StatusIcon = ({ status }: { status: string }) => {
+    if (status === "RESOLVED") {
       return (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <path d="M6.00016 10.7803L3.2135 8.00033L2.2735 8.94033L6.00016 12.667L14.0002 4.66699L13.0602 3.72699L6.00016 10.7803Z" fill="#1FC16B"/>
         </svg>
       );
     }
-    if (status === "In Progress") {
+    if (status === "IN_PROGRESS") {
       return (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <circle cx="8" cy="8" r="6" stroke="#007BFF" strokeWidth="2" fill="none" />
@@ -46,18 +47,89 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
     );
   };
 
-  const handleSendResponse = () => {
-    if (response.trim()) {
-      setAdminResponses([...adminResponses, response]);
-      setResponse("");
+  const handleSendResponse = async () => {
+    if (response.trim() && ticket.id) {
+      const success = await respondToTicket(ticket.id, response.trim());
+      if (success) {
+        setResponse("");
+      }
     }
   };
 
-  const handleAddNewResponse = () => setResponse("");
+  const handleMarkAsResolved = async () => {
+    if (ticket.id) {
+      const success = await markAsResolved(ticket.id);
+      if (success) {
+        onClose();
+      }
+    }
+  };
 
-  const handleMarkAsResolved = () => {
-    alert(`Ticket ${ticket.ticketId} marked as resolved!`);
-    onClose();
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", { 
+      year: "numeric", 
+      month: "long", 
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  };
+
+  const hasAdminResponse = ticket.adminResponse && ticket.adminResponse.trim().length > 0;
+
+  // Download handler
+  const handleDownload = async (fileUrl: string) => {
+    try {
+      setDownloadingFile(fileUrl);
+      
+      console.log("Attempting to download:", fileUrl);
+      
+      // Extract filename from Cloudinary URL
+      const urlParts = fileUrl.split('/');
+      const fileNameWithExt = urlParts[urlParts.length - 1];
+      // Remove any query parameters
+      const fileName = fileNameWithExt.split('?')[0];
+      
+      const response = await fetch(`/api/admin/download-document?url=${encodeURIComponent(fileUrl)}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      console.log("Response status:", response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Download failed:", errorText);
+        throw new Error(errorText || "Download failed");
+      }
+
+      // Create blob from response
+      const blob = await response.blob();
+      console.log("Blob size:", blob.size);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      console.log("Download completed successfully");
+      
+    } catch (error) {
+      console.error("Download error:", error);
+      alert(`Failed to download file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setDownloadingFile(null);
+    }
   };
 
   // REUSABLE CONTENT — used on both desktop and mobile
@@ -77,30 +149,32 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
 
       {/* Main Content */}
       <div className="px-4 py-6 md:px-8 space-y-8">
-        {/* All your original content — 100% unchanged */}
+        {/* Ticket Details */}
         <div className="space-y-5">
           <div className="flex items-start gap-4">
-            <span className="font-dm-sans font-medium text-base text-[#171417] min-w-[160px]">User</span>
-            <div className="flex items-center gap-2">
-              <span className="font-dm-sans font-medium text-base text-[#454345]">{ticket.username}</span>
-              <span className="font-dm-sans text-sm text-[#171417] px-2 py-0.5 bg-gray-100 rounded">
-                {ticket.userRole || "User"}
-              </span>
-            </div>
+            <span className="font-dm-sans font-medium text-base text-[#171417] min-w-[160px]">Email</span>
+            <span className="font-dm-sans font-medium text-base text-[#454345]">{ticket.email}</span>
           </div>
 
           <div className="flex items-start gap-4">
             <span className="font-dm-sans font-medium text-base text-[#171417] min-w-[160px]">Status</span>
             <div className={`inline-flex items-center gap-[6px] px-2 py-1 rounded-lg ${getStatusStyles(ticket.status)}`}>
               <StatusIcon status={ticket.status} />
-              <span className="font-dm-sans text-sm leading-[140%]">{ticket.status}</span>
+              <span className="font-dm-sans text-sm leading-[140%]">{ticket.status.replace("_", " ")}</span>
             </div>
           </div>
 
           <div className="flex items-start gap-4">
             <span className="font-dm-sans font-medium text-base text-[#171417] min-w-[160px]">Submitted on</span>
-            <span className="font-dm-sans text-base text-[#454345]">{ticket.submittedDate}</span>
+            <span className="font-dm-sans text-base text-[#454345]">{formatDate(ticket.createdAt)}</span>
           </div>
+
+          {ticket.respondedAt && (
+            <div className="flex items-start gap-4">
+              <span className="font-dm-sans font-medium text-base text-[#171417] min-w-[160px]">Responded on</span>
+              <span className="font-dm-sans text-base text-[#454345]">{formatDate(ticket.respondedAt)}</span>
+            </div>
+          )}
 
           <div className="flex items-start gap-4">
             <span className="font-dm-sans font-medium text-base text-[#171417] min-w-[160px]">Subject</span>
@@ -114,24 +188,47 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
             </span>
           </div>
 
-          {ticket.attachments && ticket.attachments.length > 0 && (
+          {ticket.screenshotUrls && ticket.screenshotUrls.length > 0 && (
             <div className="flex items-start gap-4">
               <span className="font-dm-sans font-medium text-base text-[#171417] min-w-[160px]">Attachments</span>
-              <div className="space-y-2">
-                {ticket.attachments.map((file, idx) => (
-                  <div key={idx} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg">
-                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                      <path d="M8 4H16L20 8V20C20 20.5304 19.7893 21.0391 19.4142 21.4142C19.0391 21.7893 18.5304 22 18 22H8C7.46957 22 6.96086 21.7893 6.58579 21.4142C6.21071 21.0391 6 20.5304 6 20V6C6 5.46957 6.21071 4.96086 6.58579 4.58579C6.96086 4.21071 7.46957 4 8 4Z" stroke="#454345" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <div className="flex flex-col gap-4">
+                {ticket.screenshotUrls.map((url, idx) => (
+                  <div key={idx} className="flex items-center gap-4">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                      <rect width="32" height="32" rx="8" fill="#F5F5F5"/>
+                      <path d="M12 10H18L21 13V22C21 22.5304 20.7893 23.0391 20.4142 23.4142C20.0391 23.7893 19.5304 24 19 24H12C11.4696 24 10.9609 23.7893 10.5858 23.4142C10.2107 23.0391 10 22.5304 10 22V12C10 11.4696 10.2107 10.9609 10.5858 10.5858C10.9609 10.2107 11.4696 10 12 10Z" stroke="#454345" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
-                    <div>
-                      <p className="font-dm-sans font-medium text-sm text-[#303237]">{file.name}</p>
-                      <p className="font-dm-sans text-sm text-[#8C8989]">{file.size}</p>
+                    <div className="flex flex-1 justify-between items-center">
+                      <div className="flex flex-col gap-1">
+                        <h4 className="text-[#154751] font-medium text-[.875rem] truncate max-w-[200px]">
+                          Attachment {idx + 1}
+                        </h4>
+                        <a 
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#8C8989] hover:text-[#154751] font-normal text-[.875rem] flex items-center gap-2 transition-colors"
+                        >
+                          <span>View file</span>
+                        </a>
+                      </div>
+                      <button
+                        onClick={() => handleDownload(url)}
+                        disabled={downloadingFile === url}
+                        className="text-[#373737] hover:text-[#154751] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={downloadingFile === url ? "Downloading..." : "Download file"}
+                      >
+                        {downloadingFile === url ? (
+                          <div className="w-5 h-5 border-2 border-[#154751] border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M17.5 12.5V15.8333C17.5 16.2754 17.3244 16.6993 17.0118 17.0118C16.6993 17.3244 16.2754 17.5 15.8333 17.5H4.16667C3.72464 17.5 3.30072 17.3244 2.98816 17.0118C2.67559 16.6993 2.5 16.2754 2.5 15.8333V12.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M5.83331 8.33333L9.99998 12.5L14.1666 8.33333" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M10 12.5V2.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </button>
                     </div>
-                    <button className="ml-2">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                        <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15M7 10L12 15M12 15L17 10M12 15V3" stroke="#454345" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </button>
                   </div>
                 ))}
               </div>
@@ -140,36 +237,44 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
         </div>
 
         {/* User Message */}
-        {userResponses.map((msg, i) => (
-          <div key={i} className="space-y-2">
-            <h3 className="font-dm-sans font-medium text-base text-[#171417]">User Message</h3>
-            <div className="bg-[#E8FBF7] rounded-xl px-4 py-3">
-              <p className="font-dm-sans text-base leading-[140%] text-[#171417]">{msg}</p>
-            </div>
+        <div className="space-y-2">
+          <h3 className="font-dm-sans font-medium text-base text-[#171417]">User Message</h3>
+          <div className="bg-[#E8FBF7] rounded-xl px-4 py-3">
+            <p className="font-dm-sans text-base leading-[140%] text-[#171417]">{ticket.description}</p>
           </div>
-        ))}
+        </div>
 
-        {/* Admin Responses */}
-        {adminResponses.map((resp, i) => (
-          <div key={i} className="space-y-2">
-            <h3 className="font-dm-sans font-medium text-base text-[#171417]">Admin Response #{i + 1}</h3>
+        {/* Admin Response (if exists) */}
+        {hasAdminResponse && (
+          <div className="space-y-2">
+            <h3 className="font-dm-sans font-medium text-base text-[#171417]">Admin Response</h3>
             <div className="bg-[#FFFAFA] rounded-xl px-4 py-3">
-              <p className="font-dm-sans text-base leading-[140%] text-[#171417]">{resp}</p>
+              <p className="font-dm-sans text-base leading-[140%] text-[#171417]">{ticket.adminResponse}</p>
             </div>
           </div>
-        ))}
+        )}
+
+        {/* Error Display */}
+        {respondError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+            <p className="font-dm-sans text-sm text-red-600">{respondError}</p>
+          </div>
+        )}
 
         {/* Response Section */}
-        {adminResponses.length === 0 ? (
+        {ticket.status !== "RESOLVED" && (
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="font-dm-sans font-medium text-base text-[#171417]">Respond to User:</label>
+              <label className="font-dm-sans font-medium text-base text-[#171417]">
+                {hasAdminResponse ? "Add Another Response:" : "Respond to User:"}
+              </label>
               <textarea
                 value={response}
                 onChange={(e) => setResponse(e.target.value)}
                 placeholder="Type your response here..."
                 className="w-full border border-[#B2B2B4] rounded-xl px-4 py-3 font-dm-sans text-base placeholder:text-[#B2B2B4] focus:outline-none focus:border-[#154751] resize-none"
                 rows={4}
+                disabled={respondingToTicket}
               />
             </div>
             <div className="flex items-center gap-2 text-[#454345]">
@@ -177,44 +282,37 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
                 <path d="M10 18C14.4183 18 18 14.4183 18 10C18 5.58172 14.4183 2 10 2C5.58172 2 2 5.58172 2 10C2 14.4183 5.58172 18 10 18Z" stroke="#454345" strokeWidth="2"/>
                 <path d="M10 6V10L13 13" stroke="#454345" strokeWidth="2" strokeLinecap="round"/>
               </svg>
-              <p className="font-dm-sans text-base">Response will be sent via in-app message or email depending on user settings</p>
+              <p className="font-dm-sans text-base">Response will be sent via email to {ticket.email}</p>
             </div>
-            <button
-              onClick={handleSendResponse}
-              disabled={!response.trim()}
-              className={`w-full md:w-auto px-6 py-3 md:py-4 rounded-[36px] font-dm-sans font-medium text-base text-center transition-all ${
-                response.trim()
-                  ? "bg-gradient-to-br from-[#154751] to-[#04171F] text-white hover:opacity-90"
-                  : "bg-[#ACC5CF] text-[#FFFEFE] cursor-not-allowed"
-              }`}
-            >
-              Send Response
-            </button>
+            <div className="flex flex-col md:flex-row gap-4">
+              <button
+                onClick={handleSendResponse}
+                disabled={!response.trim() || respondingToTicket}
+                className={`flex-1 px-6 py-3 md:py-4 rounded-[36px] font-dm-sans font-medium text-base text-center transition-all ${
+                  response.trim() && !respondingToTicket
+                    ? "bg-gradient-to-br from-[#154751] to-[#04171F] text-white hover:opacity-90"
+                    : "bg-[#ACC5CF] text-[#FFFEFE] cursor-not-allowed"
+                }`}
+              >
+                {respondingToTicket ? "Sending..." : "Send Response"}
+              </button>
+              <button 
+                onClick={handleMarkAsResolved}
+                disabled={respondingToTicket}
+                className="px-6 py-4 rounded-[36px] border border-[#154751] text-[#154751] font-dm-sans font-medium text-base hover:bg-[#154751] hover:text-white transition-colors disabled:opacity-50"
+              >
+                Mark as Resolved
+              </button>
+            </div>
           </div>
-        ) : (
-          <div className="flex flex-col md:flex-row gap-4 justify-end">
-            <button onClick={handleAddNewResponse} className="flex items-center justify-center gap-2 px-6 py-4 rounded-[36px] hover:bg-gray-50 transition-colors border border-gray-200">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M12 5V19M5 12H19" stroke="url(#gradient)" strokeWidth="2" strokeLinecap="round"/>
-                <defs>
-                  <radialGradient id="gradient">
-                    <stop offset="0.37" stopColor="#154751"/>
-                    <stop offset="1" stopColor="#04171F"/>
-                  </radialGradient>
-                </defs>
-              </svg>
-              <span className="font-dm-sans font-medium text-base" style={{
-                background: "radial-gradient(50% 50% at 50% 50%, #154751 37%, #04171F 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}>
-                Add New Response
-              </span>
-            </button>
-            <button onClick={handleMarkAsResolved} className="px-6 py-4 rounded-[36px] bg-gradient-to-br from-[#154751] to-[#04171F] text-white font-dm-sans font-medium text-base hover:opacity-90 transition-opacity">
-              Mark as Resolved
-            </button>
+        )}
+
+        {/* Resolved Status */}
+        {ticket.status === "RESOLVED" && (
+          <div className="bg-[#E0F5E6] border border-[#1FC16B] rounded-lg px-4 py-3 text-center">
+            <p className="font-dm-sans font-medium text-base text-[#1FC16B]">
+              This ticket has been resolved
+            </p>
           </div>
         )}
       </div>
@@ -231,7 +329,7 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
         </div>
       </div>
 
-      {/* MOBILE: Bottom Sheet — SAME DESIGN, slides up */}
+      {/* MOBILE: Bottom Sheet */}
       <div className="md:hidden fixed inset-0 z-[200] flex items-end">
         <div className="absolute inset-0" onClick={onClose} style={{ background: "rgba(0,0,0,0.05)" }} />
         <div 

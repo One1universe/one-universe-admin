@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Search, ChevronDown, Check } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supportTicketStore } from "@/store/supportTicketStore";
 
 import SupportTicketsTable from "./Tabs/ReportTabs/SupportTicketsTable";
 import AppRatingsTable from "./Tabs/RatingsTabs/AppRatingsTable";
@@ -83,6 +84,9 @@ const AdminSupportPage = () => {
   ]);
   const [showStatusFilter, setShowStatusFilter] = useState(false);
 
+  // Get total tickets from store
+  const { totalTickets } = supportTicketStore();
+
   const toggleStatus = (status: string) => {
     setSelectedStatuses((prev) =>
       prev.includes(status)
@@ -90,8 +94,6 @@ const AdminSupportPage = () => {
         : [...prev, status]
     );
   };
-
-  const hasTickets = false; // Toggle this to test empty state
 
   return (
     <>
@@ -131,7 +133,7 @@ const AdminSupportPage = () => {
                   Support Tickets
                 </h2>
                 <span className="font-dm-sans font-medium text-sm text-[#171417] bg-[#E6E8E9] px-2 py-0.5 rounded">
-                  0
+                  {totalTickets}
                 </span>
               </div>
 
@@ -169,8 +171,11 @@ const AdminSupportPage = () => {
               </div>
 
               {/* Table or Empty State */}
-              <div className="min-h-[420px] overflow-x-auto bg-white">
-                {hasTickets ? <SupportTicketsTable /> : <EmptyState type="support" />}
+              <div className="min-h-[420px] bg-white">
+                <SupportTicketsTable 
+                  searchQuery={searchQuery}
+                  selectedStatuses={selectedStatuses}
+                />
               </div>
             </div>
           </TabsContent>
@@ -190,7 +195,7 @@ const AdminSupportPage = () => {
                 </button>
               </div>
 
-              <div className="min-h-[420px] flex items-center justify-center bg-white">
+              <div className="min-h-[420px] bg-white">
                 <AppRatingsTable />
                 {/* Replace with empty state if no ratings */}
                 {/* <EmptyState type="ratings" /> */}

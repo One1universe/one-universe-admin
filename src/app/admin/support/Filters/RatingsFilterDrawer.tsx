@@ -3,6 +3,7 @@
 
 import React, { useState } from "react";
 import { X, ChevronDown } from "lucide-react";
+import { appRatingsStore } from "@/store/appRatingsStore";
 
 interface RatingsFilterDrawerProps {
   isOpen: boolean;
@@ -15,10 +16,72 @@ const RatingsFilterDrawer = ({ isOpen, onClose }: RatingsFilterDrawerProps) => {
   const [toDate, setToDate] = useState("");
   const [platform, setPlatform] = useState("All");
   const [isPlatformOpen, setIsPlatformOpen] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
+
+  const { setFilters, applyFilters, ratingsLoading } = appRatingsStore();
 
   if (!isOpen) return null;
 
-  const platforms = ["All", "iOS", "Android", "Web"];
+  const platforms = ["All", "ios", "android", "UNKNOWN"];
+
+  const platformDisplay = {
+    All: "All",
+    ios: "iOS",
+    android: "Android",
+    UNKNOWN: "Web",
+  };
+
+  const handleApplyFilters = async () => {
+    setIsApplying(true);
+
+    try {
+      // Build filters object
+      const filters: any = {};
+
+      if (selectedRating) {
+        filters.rating = selectedRating;
+      }
+
+      if (platform !== "All") {
+        filters.platform = platform;
+      }
+
+      if (fromDate) {
+        // Convert DD-MM-YYYY to ISO format YYYY-MM-DD
+        const [day, month, year] = fromDate.split("-");
+        filters.fromDate = `${year}-${month}-${day}`;
+      }
+
+      if (toDate) {
+        // Convert DD-MM-YYYY to ISO format YYYY-MM-DD
+        const [day, month, year] = toDate.split("-");
+        filters.toDate = `${year}-${month}-${day}`;
+      }
+
+      console.log("🔍 Applying filters:", filters);
+
+      // Set filters in store
+      setFilters(filters);
+
+      // Fetch with filters applied
+      await applyFilters();
+
+      // Close drawer
+      onClose();
+    } catch (error) {
+      console.error("❌ Error applying filters:", error);
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  const handleClearFilters = () => {
+    setSelectedRating(null);
+    setFromDate("");
+    setToDate("");
+    setPlatform("All");
+    setFilters({});
+  };
 
   return (
     <>
@@ -53,7 +116,7 @@ const RatingsFilterDrawer = ({ isOpen, onClose }: RatingsFilterDrawerProps) => {
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
                     key={star}
-                    onClick={() => setSelectedRating(star)}
+                    onClick={() => setSelectedRating(selectedRating === star ? null : star)}
                     className="focus:outline-none transition-transform hover:scale-110"
                   >
                     <svg
@@ -70,7 +133,7 @@ const RatingsFilterDrawer = ({ isOpen, onClose }: RatingsFilterDrawerProps) => {
               </div>
               {selectedRating && (
                 <span className="font-dm-sans font-medium text-base text-[#171417]">
-                  {selectedRating}
+                  {selectedRating}+
                 </span>
               )}
             </div>
@@ -114,7 +177,7 @@ const RatingsFilterDrawer = ({ isOpen, onClose }: RatingsFilterDrawerProps) => {
                 onClick={() => setIsPlatformOpen(!isPlatformOpen)}
                 className="w-full h-[43px] px-4 rounded-xl border border-[#B2B2B4] bg-white font-dm-sans text-base text-center flex items-center justify-between focus:outline-none focus:border-[#154751] transition"
               >
-                <span>{platform}</span>
+                <span>{platformDisplay[platform as keyof typeof platformDisplay]}</span>
                 <ChevronDown
                   size={20}
                   className={`text-[#171417] transition-transform ${isPlatformOpen ? "rotate-180" : ""}`}
@@ -132,7 +195,7 @@ const RatingsFilterDrawer = ({ isOpen, onClose }: RatingsFilterDrawerProps) => {
                       }}
                       className="w-full px-4 py-3 text-left font-dm-sans text-base hover:bg-[#154751]/5 transition"
                     >
-                      {p}
+                      {platformDisplay[p as keyof typeof platformDisplay]}
                     </button>
                   ))}
                 </div>
@@ -141,16 +204,21 @@ const RatingsFilterDrawer = ({ isOpen, onClose }: RatingsFilterDrawerProps) => {
           </div>
         </div>
 
-        {/* Apply Button */}
-        <div className="px-8 py-6 border-t border-[#E8E3E3]">
+        {/* Footer */}
+        <div className="px-8 py-6 border-t border-[#E8E3E3] space-y-3">
           <button
-            onClick={() => {
-              console.log("Applied filters:", { selectedRating, fromDate, toDate, platform });
-              onClose();
-            }}
-            className="ml-auto block px-6 py-4 rounded-[20px] bg-gradient-to-br from-[#154751] to-[#04171F] text-white font-dm-sans font-medium text-base hover:opacity-90 transition-opacity"
+            onClick={handleApplyFilters}
+            disabled={isApplying || ratingsLoading}
+            className="w-full px-6 py-4 rounded-[20px] bg-gradient-to-br from-[#154751] to-[#04171F] text-white font-dm-sans font-medium text-base hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Apply Filter
+            {isApplying ? "Applying..." : "Apply Filter"}
+          </button>
+
+          <button
+            onClick={handleClearFilters}
+            className="w-full px-6 py-4 rounded-[20px] border border-[#E8E3E3] bg-white text-[#154751] font-dm-sans font-medium text-base hover:bg-gray-50 transition-colors"
+          >
+            Clear Filters
           </button>
         </div>
       </div>

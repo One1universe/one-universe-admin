@@ -86,25 +86,25 @@ const SubscriptionTable = () => {
     <>
       {/* Desktop Table */}
       <div className="hidden md:block w-full overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[900px]">
+        <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-[#FFFCFC] border-b border-[#E5E5E5]">
-              <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264]">
+              <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264] whitespace-nowrap">
                 Seller Name
               </th>
-              <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264]">
+              <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264] whitespace-nowrap">
                 Email Address
               </th>
-              <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264]">
+              <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264] whitespace-nowrap">
                 End Date
               </th>
-              <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264]">
+              <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264] whitespace-nowrap">
                 Plan Type
               </th>
-              <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264]">
+              <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#646264] whitespace-nowrap">
                 Status
               </th>
-              <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#7B7B7B]">
+              <th className="py-[18px] px-[25px] font-dm-sans font-medium text-base text-[#7B7B7B] whitespace-nowrap">
                 Action
               </th>
             </tr>
@@ -115,32 +115,32 @@ const SubscriptionTable = () => {
                 key={sub.id}
                 className="bg-white border-b border-[#E5E5E5] hover:bg-[#FAFAFA] transition-colors"
               >
-                <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">
+                <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237] whitespace-nowrap">
                   {sub.sellerName}
                 </td>
-                <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">
+                <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237] whitespace-nowrap">
                   {sub.email}
                 </td>
-                <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">
+                <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237] whitespace-nowrap">
                   {sub.endDate}
                 </td>
-                <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">
+                <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237] whitespace-nowrap">
                   {sub.planType}
                 </td>
                 <td className="py-[18px] px-[25px]">
                   <span
-                    className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${getStatusStyles(
+                    className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ${getStatusStyles(
                       sub.status
                     )}`}
                   >
-                    <div className="w-2 h-2 rounded-full bg-current" />
+                    <div className="w-2 h-2 rounded-full bg-current flex-shrink-0" />
                     {sub.status}
                   </span>
                 </td>
                 <td className="py-[18px] px-[25px]">
                   <button
                     onClick={() => handleViewDetails(sub)}
-                    className="font-dm-sans text-sm font-medium text-[#154751] hover:text-[#04171F] underline-offset-2 hover:underline transition-colors"
+                    className="font-dm-sans text-sm font-medium text-[#154751] hover:text-[#04171F] underline-offset-2 hover:underline transition-colors whitespace-nowrap"
                   >
                     View Details
                   </button>
@@ -156,41 +156,41 @@ const SubscriptionTable = () => {
         {subscriptions.map((sub) => (
           <div
             key={sub.id}
-            className="bg-white border border-[#E8E3E3] rounded-lg p-5 shadow-sm"
+            className="bg-white border border-[#E8E3E3] rounded-lg p-4 sm:p-5 shadow-sm"
           >
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h4 className="font-dm-sans font-medium text-base text-[#171417]">
+            <div className="flex justify-between items-start gap-3 mb-4">
+              <div className="min-w-0">
+                <h4 className="font-dm-sans font-medium text-base text-[#171417] truncate">
                   {sub.sellerName}
                 </h4>
-                <p className="font-dm-sans text-sm text-[#6B6969] mt-1">{sub.email}</p>
+                <p className="font-dm-sans text-sm text-[#6B6969] mt-1 truncate">{sub.email}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-              <div>
-                <p className="text-[#6B6969]">End Date</p>
-                <p className="font-medium text-[#171417] mt-1">{sub.endDate}</p>
+              <div className="min-w-0">
+                <p className="text-[#6B6969] truncate">End Date</p>
+                <p className="font-medium text-[#171417] mt-1 truncate">{sub.endDate}</p>
               </div>
-              <div>
-                <p className="text-[#6B6969]">Plan</p>
-                <p className="font-medium text-[#171417] mt-1">{sub.planType}</p>
+              <div className="min-w-0">
+                <p className="text-[#6B6969] truncate">Plan</p>
+                <p className="font-medium text-[#171417] mt-1 truncate">{sub.planType}</p>
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <span
-                className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${getStatusStyles(
+                className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium w-fit ${getStatusStyles(
                   sub.status
                 )}`}
               >
-                <div className="w-2 h-2 rounded-full bg-current" />
+                <div className="w-2 h-2 rounded-full bg-current flex-shrink-0" />
                 {sub.status}
               </span>
 
               <button
                 onClick={() => handleViewDetails(sub)}
-                className="font-dm-sans text-sm font-medium text-[#154751] hover:text-[#04171F] underline-offset-2 hover:underline"
+                className="font-dm-sans text-sm font-medium text-[#154751] hover:text-[#04171F] underline-offset-2 hover:underline whitespace-nowrap"
               >
                 View Details
               </button>
