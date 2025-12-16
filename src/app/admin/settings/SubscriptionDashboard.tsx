@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Filter, TrendingUp, TrendingDown, Check, Loader, Edit2 } from "lucide-react";
+import { Search, Filter, Loader, Check, Edit2, MoveUp } from "lucide-react";
+import Image from "next/image";
+import { Separator } from "@/components/ui/separator";
 import SubscriptionTable from "./Tabs/subscription/SubscriptionTable";
 import SettingsEmptyState from "./SettingsEmptyState";
 import UpdatePlanPricingModal from "./Tabs/pricing/UpdatePricingModal";
@@ -66,87 +68,103 @@ const SubscriptionDashboard = () => {
   const monthlyRevenue = metrics?.totalRevenue || 0;
   const pendingRenewals = metrics?.yetToRenew || 0;
 
-  const previousActive = Math.max(1, activeCount - Math.floor(activeCount * 0.21));
-  const activePercentChange = activeCount > 0 ? Math.round(((activeCount - previousActive) / previousActive) * 100) : 0;
-  const revenuePercentChange = 21;
-
   const premiumMonthly = groupedPlans['Premium Plan']?.['MONTHLY'];
   const premiumYearly = groupedPlans['Premium Plan']?.['YEARLY'];
+
+  // Dashboard-style stats
+  const stats = [
+    {
+      label: "Active Subscriptions",
+      color: "bg-[#00AB47]",
+      total: activeCount,
+      growth: 21,
+      growthType: "positive" as const,
+      isCurrency: false,
+    },
+    {
+      label: "Monthly Revenue",
+      color: "bg-[#1FC16B]",
+      total: monthlyRevenue,
+      growth: 21,
+      growthType: "positive" as const,
+      isCurrency: true,
+    },
+    {
+      label: "Pending Renewals",
+      color: "bg-[#3621EE]",
+      total: pendingRenewals,
+      growth: 21,
+      growthType: pendingRenewals > 0 ? "negative" : "positive",
+      isCurrency: false,
+    },
+  ];
 
   return (
     <div className="w-full space-y-8 px-5 md:px-0">
 
-      {/* === 3 STAT CARDS === */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white border border-[#E8E3E3] rounded-lg px-4 pt-3 pb-4 h-[123px] flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 bg-[#00AB47] rounded flex items-center justify-center">
-                <div className="w-3 h-3 bg-white rounded-sm" />
+      {/* === DASHBOARD STYLE STAT CARDS === */}
+      <section className="grid grid-cols-1 min-[410px]:grid-cols-2 min-[1200px]:grid-cols-3 gap-4">
+        {stats.map(({ label, color, total, growth, growthType, isCurrency }) => {
+          const isPositive = growthType === "positive";
+          return (
+            <aside
+              key={label}
+              className="h-auto min-h-[123px] border border-[#E8E3E3] rounded-[8px] py-3 px-4 flex flex-col gap-2 bg-white"
+            >
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-2">
+                  <div className={`${color} size-[20px] p-1 rounded-[4px] flex items-center justify-center flex-shrink-0`}>
+                    <Image
+                      src="/logo/logo-vector.svg"
+                      alt="Logo"
+                      width={12}
+                      height={11}
+                    />
+                  </div>
+                  <h3 className="text-[#171417] font-medium leading-[140%] text-[0.875rem]">
+                    {label}
+                  </h3>
+                </div>
+                <h3 className="font-bold text-[#171417] text-[1.25rem] leading-[140%]">
+                  {loading ? (
+                    <Loader size={20} className="animate-spin" />
+                  ) : isCurrency ? (
+                    `₦${total.toLocaleString()}`
+                  ) : (
+                    total.toLocaleString()
+                  )}
+                </h3>
               </div>
-              <span className="font-dm-sans text-base font-medium text-[#171417]">
-                Active Subscriptions
-              </span>
-            </div>
-            <TrendingUp size={16} className="text-[#00AB47]" />
-          </div>
-          <div>
-            <p className="font-dm-sans font-bold text-2xl text-[#171417]">
-              {loading ? <Loader size={20} className="animate-spin" /> : activeCount}
-            </p>
-            <div className="font-dm-sans text-xs text-[#171417] mt-1 flex items-center gap-1">
-              <div className="w-3 h-3 bg-[#D7FFE9] rounded-sm flex items-center justify-center">
-                <TrendingUp size={10} className="text-[#1FC16B]" />
+              <Separator />
+              <div className="flex items-center gap-2">
+                <div
+                  className={`p-0.5 rounded-[2px] ${
+                    isPositive ? "bg-[#D7FFE9]" : "bg-[#E9BCB7]"
+                  }`}
+                >
+                  <MoveUp
+                    size={8}
+                    className={`${
+                      isPositive ? "text-[#1FC16B]" : "text-[#D00416]"
+                    }`}
+                  />
+                </div>
+                <p className="text-[#171417] text-[0.75rem] font-normal leading-[140%]">
+                  <span
+                    className={
+                      isPositive ? "text-[#1FC16B]" : "text-[#D00416]"
+                    }
+                  >
+                    {isPositive ? "+" : "-"}
+                    {growth}%
+                  </span>{" "}
+                  from last month
+                </p>
               </div>
-              <span>+{activePercentChange}% from last month</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white border border-[#E8E3E3] rounded-lg px-4 pt-3 pb-4 h-[123px] flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="font-dm-sans text-base font-medium text-[#171417]">
-              Monthly Revenue
-            </span>
-            <TrendingUp size={16} className="text-[#1FC16B]" />
-          </div>
-          <div>
-            <p className="font-dm-sans font-bold text-2xl text-[#171417]">
-              {loading ? (
-                <Loader size={20} className="animate-spin" />
-              ) : (
-                `₦${monthlyRevenue.toLocaleString()}`
-              )}
-            </p>
-            <div className="font-dm-sans text-xs text-[#171417] mt-1 flex items-center gap-1">
-              <div className="w-3 h-3 bg-[#D7FFE9] rounded-sm flex items-center justify-center">
-                <TrendingUp size={10} className="text-[#1FC16B]" />
-              </div>
-              <span>+{revenuePercentChange}% from last month</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white border border-[#E8E3E3] rounded-lg px-4 pt-3 pb-4 h-[123px] flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="font-dm-sans text-base font-medium text-[#171417]">
-              Pending Renewals
-            </span>
-            <TrendingDown size={16} className={pendingRenewals > 0 ? "text-[#D84040]" : "text-[#1FC16B]"} />
-          </div>
-          <div>
-            <p className="font-dm-sans font-bold text-2xl text-[#171417]">
-              {loading ? <Loader size={20} className="animate-spin" /> : pendingRenewals}
-            </p>
-            <div className={`font-dm-sans text-xs mt-1 flex items-center gap-1 ${pendingRenewals > 0 ? 'text-[#D84040]' : 'text-[#1FC16B]'}`}>
-              <div className={`w-3 h-3 rounded-sm flex items-center justify-center ${pendingRenewals > 0 ? 'bg-[#E9BCB7]' : 'bg-[#D7FFE9]'}`}>
-                <TrendingDown size={10} className={pendingRenewals > 0 ? "text-[#D84040]" : "text-[#1FC16B]"} />
-              </div>
-              <span>{pendingRenewals > 0 ? '-' : '+'}21% from last month</span>
-            </div>
-          </div>
-        </div>
-      </div>
+            </aside>
+          );
+        })}
+      </section>
 
       {/* === PRICING CARDS === */}
       <div className="bg-white rounded-2xl border border-[#E8E3E3] p-6 space-y-4">

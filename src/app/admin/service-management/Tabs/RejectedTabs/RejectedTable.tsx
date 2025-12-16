@@ -18,16 +18,16 @@ export default function RejectedTable({
 }: RejectedTableProps) {
   const [expandedService, setExpandedService] = useState<string | null>(null);
 
-  const getInitials = (name: string) => {
+  const getInitials = (name: string): string => {
     return name
       .split(" ")
-      .map((n) => n[0])
+      .map((n: string) => n[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
   };
 
-  const getAvatarColor = (name: string) => {
+  const getAvatarColor = (name: string): string => {
     const colors = [
       "bg-blue-500",
       "bg-green-500",
@@ -72,7 +72,7 @@ export default function RejectedTable({
             </tr>
           </thead>
           <tbody>
-            {services.map((service) => {
+            {services.map((service: Service) => {
               const sellerUser = service.sellerProfiles[0]?.user;
               const displayName = sellerUser?.fullName || "Unknown Seller";
               const email = sellerUser?.email || "";
@@ -138,7 +138,7 @@ export default function RejectedTable({
 
       {/* Mobile List */}
       <div className="md:hidden p-4 space-y-3">
-        {services.map((service) => {
+        {services.map((service: Service) => {
           const sellerUser = service.sellerProfiles[0]?.user;
           const displayName = sellerUser?.fullName || "Unknown Seller";
           const email = sellerUser?.email || "";

@@ -1,9 +1,21 @@
-// components/DateRangePicker.tsx
 import React, { useState, useRef, useEffect } from "react";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameMonth,
+  isSameDay,
+  addMonths,
+  subMonths,
+} from "date-fns";
 
-export default function DateRangePicker() {
+interface DateRangePickerProps {
+  onDateRangeChange?: (start: Date | null, end: Date | null) => void;
+}
+
+export default function DateRangePicker({ onDateRangeChange }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedStart, setSelectedStart] = useState<Date | null>(null);
@@ -28,12 +40,12 @@ export default function DateRangePicker() {
     return day >= selectedStart && day <= selectedEnd;
   };
 
- const isStartOrEnd = (day: Date): boolean => {
-  return (
-    (selectedStart !== null && isSameDay(day, selectedStart)) ||
-    (selectedEnd !== null && isSameDay(day, selectedEnd))
-  );
-};
+  const isStartOrEnd = (day: Date): boolean => {
+    return (
+      (selectedStart !== null && isSameDay(day, selectedStart)) ||
+      (selectedEnd !== null && isSameDay(day, selectedEnd))
+    );
+  };
 
   const handleDayClick = (day: Date) => {
     if (isPastDay(day)) return;
@@ -56,7 +68,21 @@ export default function DateRangePicker() {
       ? `${format(selectedStart, "MMM d")} – ${format(selectedEnd, "MMM d, yyyy")}`
       : "Select date range";
 
-  // Close only when clicking outside trigger + popover
+  const handleApply = () => {
+    if (onDateRangeChange) {
+      onDateRangeChange(selectedStart, selectedEnd);
+    }
+    setIsOpen(false);
+  };
+
+  const handleClear = () => {
+    setSelectedStart(null);
+    setSelectedEnd(null);
+    if (onDateRangeChange) {
+      onDateRangeChange(null, null);
+    }
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -84,7 +110,7 @@ export default function DateRangePicker() {
       >
         <Calendar size={16} className="text-[#171417]" />
         <span className="text-base font-normal text-[#171417] font-['DM_Sans']">
-          Date Range
+          {selectedStart && selectedEnd ? format(selectedStart, "MMM d") : "Date Range"}
         </span>
       </button>
 
@@ -160,16 +186,13 @@ export default function DateRangePicker() {
               </div>
               <div className="flex justify-end gap-3">
                 <button
-                  onClick={() => {
-                    setSelectedStart(null);
-                    setSelectedEnd(null);
-                  }}
+                  onClick={handleClear}
                   className="px-4 py-2 text-sm font-medium text-[#154751] hover:bg-gray-50 rounded-lg transition"
                 >
                   Clear
                 </button>
                 <button
-                  onClick={() => setIsOpen(false)}
+                  onClick={handleApply}
                   disabled={!selectedStart || !selectedEnd}
                   className="px-4 py-2 text-sm font-medium text-white bg-[#154751] rounded-lg hover:bg-[#04171F] disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >

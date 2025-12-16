@@ -1,6 +1,6 @@
 // components/Modal/RejectionModal.tsx
 import React, { useState } from "react";
-import { X, AlertCircle } from "lucide-react";
+import { X } from "lucide-react";
 
 interface RejectionModalProps {
   isOpen: boolean;
@@ -8,6 +8,8 @@ interface RejectionModalProps {
   onConfirm: (reason: string) => void;
   serviceName: string;
   providerName: string;
+  isBulk?: boolean;
+  bulkCount?: number;
 }
 
 export default function RejectionModal({
@@ -16,15 +18,22 @@ export default function RejectionModal({
   onConfirm,
   serviceName,
   providerName,
+  isBulk = false,
+  bulkCount = 0,
 }: RejectionModalProps) {
   const [reason, setReason] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleConfirm = () => {
-    onConfirm(reason.trim());
-    setReason("");
-    onClose();
+  const handleConfirm = async () => {
+    setIsSubmitting(true);
+    try {
+      await onConfirm(reason.trim());
+    } finally {
+      setIsSubmitting(false);
+      setReason("");
+    }
   };
 
   const handleClose = () => {
@@ -32,8 +41,11 @@ export default function RejectionModal({
     onClose();
   };
 
-  // Mobile detection via Tailwind (md breakpoint = 768px)
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+  const buttonText = isBulk ? `Reject All (${bulkCount})` : "Reject Service";
+  const title = isBulk ? "Reject Multiple Services" : "Reject Service Suggestion";
+  const description = isBulk
+    ? `Are you sure you want to reject these ${bulkCount} services?`
+    : `Are you sure you want to reject the service "${serviceName}" submitted by ${providerName}?`;
 
   return (
     <div
@@ -56,12 +68,10 @@ export default function RejectionModal({
               </div>
               <div className="flex-1 space-y-3">
                 <h2 className="text-xl font-bold text-[#171417] font-['DM_Sans'] leading-[140%]">
-                  Reject Service Suggestion
+                  {title}
                 </h2>
                 <p className="text-base text-[#171417] font-['DM_Sans'] leading-[140%]">
-                  Are you sure you want to reject the service{" "}
-                  <span className="font-bold">&quot;{serviceName}&quot;</span> submitted by{" "}
-                  <span className="font-bold">{providerName}</span>?
+                  {description}
                 </p>
                 <p className="text-sm text-[#454345] font-['DM_Sans'] leading-[140%]">
                   You can optionally add a reason for this rejection.
@@ -79,7 +89,8 @@ export default function RejectionModal({
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Type your message here"
                 rows={4}
-                className="w-full px-4 py-3 text-base text-[#171417] placeholder:text-[#B2B2B4] bg-white border border-[#B2B2B4] rounded-xl focus:outline-none focus:border-[#154751] resize-none font-['DM_Sans']"
+                disabled={isSubmitting}
+                className="w-full px-4 py-3 text-base text-[#171417] placeholder:text-[#B2B2B4] bg-white border border-[#B2B2B4] rounded-xl focus:outline-none focus:border-[#154751] resize-none font-['DM_Sans'] disabled:opacity-50"
               />
             </div>
 
@@ -87,21 +98,17 @@ export default function RejectionModal({
             <div className="flex gap-8">
               <button
                 onClick={handleClose}
-                className="flex-1 h-12 rounded-[20px] border border-transparent bg-gradient-to-r from-[#154751] to-[#04171F] text-[#154751] font-medium text-base font-['DM_Sans'] hover:bg-gray-50 transition"
-                style={{
-                  background: "white",
-                  borderImageSource:
-                    "radial-gradient(50% 50% at 50% 50%, #154751 37%, #04171F 100%)",
-                  borderImageSlice: 1,
-                }}
+                disabled={isSubmitting}
+                className="flex-1 h-12 rounded-[20px] bg-white text-[#154751] font-medium text-base font-['DM_Sans'] hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed border border-[#154751]"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirm}
-                className="flex-1 h-12 rounded-[20px] bg-[#D84040] text-white font-medium text-base font-['DM_Sans'] hover:shadow-lg transition"
+                disabled={isSubmitting}
+                className="flex-1 h-12 rounded-[20px] bg-[#D84040] text-white font-medium text-base font-['DM_Sans'] hover:bg-[#c73838] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Reject Service
+                {isSubmitting ? "Rejecting..." : buttonText}
               </button>
             </div>
           </div>
@@ -120,12 +127,10 @@ export default function RejectionModal({
             {/* Text Content */}
             <div className="text-center space-y-4">
               <h2 className="text-xl font-bold text-[#171417] font-['DM_Sans'] leading-[140%]">
-                Reject Service Suggestion
+                {title}
               </h2>
               <p className="text-base text-[#171417] font-['DM_Sans'] leading-[140%]">
-                Are you sure you want to reject the service{" "}
-                <span className="font-bold">&quot;{serviceName}&quot;</span> submitted by{" "}
-                <span className="font-bold">{providerName}</span>?
+                {description}
               </p>
               <p className="text-sm text-[#454345] font-['DM_Sans'] leading-[140%]">
                 You can optionally add a reason for this rejection.
@@ -142,7 +147,8 @@ export default function RejectionModal({
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Type your message here"
                 rows={4}
-                className="w-full px-4 py-3 text-base text-[#171417] placeholder:text-[#B2B2B4] bg-white border border-[#B2B2B4] rounded-xl focus:outline-none focus:border-[#154751] resize-none font-['DM_Sans']"
+                disabled={isSubmitting}
+                className="w-full px-4 py-3 text-base text-[#171417] placeholder:text-[#B2B2B4] bg-white border border-[#B2B2B4] rounded-xl focus:outline-none focus:border-[#154751] resize-none font-['DM_Sans'] disabled:opacity-50"
               />
             </div>
 
@@ -150,18 +156,15 @@ export default function RejectionModal({
             <div className="flex flex-col gap-4">
               <button
                 onClick={handleConfirm}
-                className="w-full h-12 rounded-[20px] bg-[#D84040] text-white font-medium text-base font-['DM_Sans'] hover:shadow-lg transition"
+                disabled={isSubmitting}
+                className="w-full h-12 rounded-[20px] bg-[#D84040] text-white font-medium text-base font-['DM_Sans'] hover:bg-[#c73838] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Reject Service
+                {isSubmitting ? "Rejecting..." : buttonText}
               </button>
               <button
                 onClick={handleClose}
-                className="w-full h-12 rounded-[20px] border border-transparent bg-white text-[#154751] font-medium text-base font-['DM_Sans'] hover:bg-gray-50 transition"
-                style={{
-                  borderImageSource:
-                    "radial-gradient(50% 50% at 50% 50%, #154751 37%, #04171F 100%)",
-                  borderImageSlice: 1,
-                }}
+                disabled={isSubmitting}
+                className="w-full h-12 rounded-[20px] bg-white text-[#154751] font-medium text-base font-['DM_Sans'] hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed border border-[#154751]"
               >
                 Cancel
               </button>

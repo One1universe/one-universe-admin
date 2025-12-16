@@ -1,17 +1,14 @@
-// ./Tabs/PendingTabs/PendingTable.tsx
 import React, { useState } from "react";
-import { Check, X, Clock, ChevronDown } from "lucide-react";
+import { Check, X, ChevronDown } from "lucide-react";
 import { Service } from "@/services/serviceManagement";
-import ApprovalModal from "../../Modal/ApprovalModal";
-import RejectionModal from "../../Modal/RejectionModal";
 
 interface PendingTableProps {
   services: Service[];
-  selectedServices: string[]; // now contains service.id strings
+  selectedServices: string[];
   onToggleService: (id: string) => void;
   onToggleAll: () => void;
-  onApprove?: (service: Service) => void | Promise<void>;
-  onReject?: (service: Service, reason: string) => void | Promise<void>;
+  onApprove: (service: Service) => void;
+  onReject?: (serviceIds: string[]) => void;
 }
 
 export default function PendingTable({
@@ -24,38 +21,16 @@ export default function PendingTable({
 }: PendingTableProps) {
   const [expandedService, setExpandedService] = useState<string | null>(null);
 
-  const [approvalModal, setApprovalModal] = useState<{
-    isOpen: boolean;
-    serviceName: string;
-    providerName: string;
-    service?: Service;
-  }>({
-    isOpen: false,
-    serviceName: "",
-    providerName: "",
-  });
-
-  const [rejectionModal, setRejectionModal] = useState<{
-    isOpen: boolean;
-    serviceName: string;
-    providerName: string;
-    service?: Service;
-  }>({
-    isOpen: false,
-    serviceName: "",
-    providerName: "",
-  });
-
-  const getInitials = (name: string) => {
+  const getInitials = (name: string): string => {
     return name
       .split(" ")
-      .map((n) => n[0])
+      .map((n: string) => n[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
   };
 
-  const getAvatarColor = (name: string) => {
+  const getAvatarColor = (name: string): string => {
     const colors = [
       "bg-blue-500",
       "bg-green-500",
@@ -64,40 +39,7 @@ export default function PendingTable({
       "bg-pink-500",
       "bg-indigo-500",
     ];
-    const index = name.length % colors.length;
-    return colors[index];
-  };
-
-  const handleApproveClick = (service: Service, providerName: string) => {
-    setApprovalModal({
-      isOpen: true,
-      serviceName: service.title,
-      providerName,
-      service,
-    });
-  };
-
-  const handleConfirmApproval = async () => {
-    if (onApprove && approvalModal.service) {
-      await onApprove(approvalModal.service);
-    }
-    setApprovalModal({ isOpen: false, serviceName: "", providerName: "" });
-  };
-
-  const handleRejectClick = (service: Service, providerName: string) => {
-    setRejectionModal({
-      isOpen: true,
-      serviceName: service.title,
-      providerName,
-      service,
-    });
-  };
-
-  const handleConfirmRejection = async (reason: string) => {
-    if (onReject && rejectionModal.service) {
-      await onReject(rejectionModal.service, reason);
-    }
-    setRejectionModal({ isOpen: false, serviceName: "", providerName: "" });
+    return colors[name.length % colors.length];
   };
 
   return (
@@ -110,7 +52,10 @@ export default function PendingTable({
               <th className="text-left py-4 px-6 w-12">
                 <input
                   type="checkbox"
-                  checked={selectedServices.length === services.length && services.length > 0}
+                  checked={
+                    selectedServices.length === services.length &&
+                    services.length > 0
+                  }
                   onChange={onToggleAll}
                   className="w-5 h-5 rounded border-gray-300 cursor-pointer"
                 />
@@ -119,21 +64,18 @@ export default function PendingTable({
                 Seller
               </th>
               <th className="text-left py-4 px-6 text-sm font-medium text-gray-600">
-                Submitted Service
+                Pending Service
               </th>
               <th className="text-left py-4 px-6 text-sm font-medium text-gray-600">
                 Submitted On
               </th>
-              <th className="text-left py-4 px-6 text-sm font-medium text-gray-600">
-                Status
-              </th>
-              <th className="text-left py-4 px-6 text-sm font-medium text-gray-600">
-                Action
+              <th className="text-center py-4 px-6 text-sm font-medium text-gray-600">
+                Actions
               </th>
             </tr>
           </thead>
           <tbody>
-            {services.map((service) => {
+            {services.map((service: Service) => {
               const sellerUser = service.sellerProfiles[0]?.user;
               const displayName = sellerUser?.fullName || "Unknown Seller";
               const email = sellerUser?.email || "";
@@ -184,23 +126,21 @@ export default function PendingTable({
                     })}
                   </td>
                   <td className="py-4 px-6">
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-100 rounded-full">
-                      <Clock size={14} className="text-orange-600" />
-                      <span className="text-sm text-orange-700">Pending</span>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center gap-2">
                       <button
-                        onClick={() => handleApproveClick(service, displayName)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-medium transition-colors"
+                        onClick={() => onApprove(service)}
+                        className="flex items-center gap-2 h-[38px] px-6 rounded-[20px] text-white font-medium text-sm shadow-md hover:shadow-lg transition-all"
+                        style={{
+                          background:
+                            "radial-gradient(50% 50% at 50% 50%, #154751 37%, #04171F 100%)",
+                        }}
                       >
                         <Check size={16} />
                         Approve
                       </button>
                       <button
-                        onClick={() => handleRejectClick(service, displayName)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
+                        onClick={() => onReject?.([service.id])}
+                        className="flex items-center gap-2 h-[38px] px-6 rounded-[20px] bg-[#D84040] text-white font-medium text-sm shadow-md hover:bg-[#c73838] transition-all"
                       >
                         <X size={16} />
                         Reject
@@ -216,7 +156,7 @@ export default function PendingTable({
 
       {/* Mobile List */}
       <div className="md:hidden p-4 space-y-3">
-        {services.map((service) => {
+        {services.map((service: Service) => {
           const sellerUser = service.sellerProfiles[0]?.user;
           const displayName = sellerUser?.fullName || "Unknown Seller";
           const email = sellerUser?.email || "";
@@ -257,80 +197,62 @@ export default function PendingTable({
                     </p>
                   )}
                 </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-orange-100 rounded-full">
-                    <Clock size={12} className="text-orange-600" />
-                    <span className="text-xs text-orange-700">Pending</span>
-                  </div>
-                  <ChevronDown
-                    size={20}
-                    className={`text-gray-400 transition-transform ${
-                      isExpanded ? "rotate-180" : ""
-                    }`}
-                  />
-                </div>
+                <ChevronDown
+                  size={20}
+                  className={`text-gray-400 transition-transform flex-shrink-0 ${
+                    isExpanded ? "rotate-180" : ""
+                  }`}
+                />
               </div>
 
               {isExpanded && (
                 <div className="px-4 pb-4 space-y-3 border-t border-gray-100">
-                  <div className="text-sm text-gray-700">
-                    <p>
-                      <strong>Submitted:</strong>{" "}
-                      {new Date(service.createdAt).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
+                  <p className="text-sm text-gray-700">
+                    <strong>Submitted on:</strong>{" "}
+                    {new Date(service.createdAt).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </p>
+                  {email && (
+                    <p className="text-sm text-gray-700">
+                      <strong>Email:</strong> {email}
                     </p>
-                    {email && (
-                      <p className="mt-1">
-                        <strong>Email:</strong> {email}
-                      </p>
-                    )}
-                    {phone && (
-                      <p>
-                        <strong>Phone:</strong> {phone}
-                      </p>
-                    )}
-                  </div>
+                  )}
+                  {phone && (
+                    <p className="text-sm text-gray-700">
+                      <strong>Phone:</strong> {phone}
+                    </p>
+                  )}
 
-                  <button
-                    onClick={() => handleApproveClick(service, displayName)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    <Check size={16} />
-                    Approve
-                  </button>
-                  <button
-                    onClick={() => handleRejectClick(service, displayName)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    <X size={16} />
-                    Reject
-                  </button>
+                  {/* Mobile Action Buttons - Matching bulk button styles */}
+                  <div className="flex gap-3 pt-4 border-t border-gray-100">
+                    <button
+                      onClick={() => onApprove(service)}
+                      className="flex-1 flex items-center justify-center gap-2 h-[38px] rounded-[20px] text-white font-medium text-sm shadow-md hover:shadow-lg transition-all"
+                      style={{
+                        background:
+                          "radial-gradient(50% 50% at 50% 50%, #154751 37%, #04171F 100%)",
+                      }}
+                    >
+                      <Check size={16} />
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => onReject?.([service.id])}
+                      className="flex-1 flex items-center justify-center gap-2 h-[38px] rounded-[20px] bg-[#D84040] text-white font-medium text-sm shadow-md hover:bg-[#c73838] transition-all"
+                    >
+                      <X size={16} />
+                      Reject
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
           );
         })}
       </div>
-
-      {/* Modals */}
-      <ApprovalModal
-        isOpen={approvalModal.isOpen}
-        onClose={() => setApprovalModal({ isOpen: false, serviceName: "", providerName: "" })}
-        onConfirm={handleConfirmApproval}
-        serviceName={approvalModal.serviceName}
-        providerName={approvalModal.providerName}
-      />
-
-      <RejectionModal
-        isOpen={rejectionModal.isOpen}
-        onClose={() => setRejectionModal({ isOpen: false, serviceName: "", providerName: "" })}
-        onConfirm={handleConfirmRejection}
-        serviceName={rejectionModal.serviceName}
-        providerName={rejectionModal.providerName}
-      />
     </>
   );
 }
