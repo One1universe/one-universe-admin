@@ -34,11 +34,11 @@ export interface DisputeResolutionResponse {
 }
 
 /**
- * Dispute Service Class
+ * Dispute Service Class - Following PaymentService Pattern
  */
 class DisputeServiceClass {
   /**
-   * Generic request method with NextAuth session
+   * Generic request method with NextAuth session - CRITICAL: Ensure token is sent
    */
   private async request(
     endpoint: string,
@@ -46,31 +46,46 @@ class DisputeServiceClass {
   ): Promise<any> {
     const session = await getSession();
 
+    // 🔴 CRITICAL: Check for access token
     if (!session?.accessToken) {
       console.error("❌ No access token found in session");
       throw new Error("Unauthorized - Please log in again");
     }
 
+    console.log("✅ Using access token:", session.accessToken.substring(0, 20) + "...");
+
     try {
+      // 🔴 CRITICAL: Must merge headers properly
+      const headers = {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session.accessToken}`,
+        ...options.headers, // User-provided headers override defaults
+      };
+
+      console.log("📤 Request headers:", {
+        "Content-Type": headers["Content-Type"],
+        "Authorization": headers["Authorization"] ? "Bearer [TOKEN]" : "MISSING!",
+      });
+
       const response = await fetch(`${baseUrl}${endpoint}`, {
         ...options,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.accessToken}`,
-          ...options.headers,
-        },
+        headers,
       });
+
+      console.log(`📍 Response status for ${endpoint}:`, response.status);
 
       // Handle 401 - Token may have expired
       if (response.status === 401) {
-        console.error("❌ Unauthorized: Token expired or invalid");
+        console.error("❌ Unauthorized (401): Token expired or invalid");
         throw new Error("Unauthorized - Session expired");
       }
 
-      if (response.status === 403) {
-        console.error("❌ Forbidden: Access denied");
-        throw new Error("Forbidden - Access denied");
-      }
+      // Handle 403 - Forbidden (Missing permissions)
+      // if (response.status === 403) {
+      //   console.error("❌ Forbidden (403): Access denied - Check permissions");
+      //   const errorData = await response.json().catch(() => ({}));
+      //   throw new Error(errorData.message || "Forbidden - Access denied. Missing DISPUTE_ADMIN_RESOLVE permission?");
+      // }
 
       const data = await response.json();
 
@@ -121,6 +136,7 @@ class DisputeServiceClass {
 
   /**
    * Admin resolve dispute with action and optional split percentage
+   * 🔴 CRITICAL: This method MUST send the access token via request()
    */
   async resolveDispute(
     disputeId: string,
@@ -136,6 +152,14 @@ class DisputeServiceClass {
       buyerPercentage,
     };
 
+    console.log("🚀 Resolving dispute:", {
+      disputeId,
+      action,
+      endpoint,
+      dto,
+    });
+
+    // 🔴 CRITICAL: Use this.request() which handles token
     return this.request(endpoint, {
       method: "POST",
       body: JSON.stringify(dto),
