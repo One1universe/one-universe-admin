@@ -193,7 +193,7 @@ const UserHistoryModal = ({ isOpen, onClose, userId, userName }: UserHistoryModa
                   {/* Dispute History Section */}
                   <div className="flex-1 px-8 space-y-3">
                     <h3 className="text-base font-medium text-[#171417] mb-4">
-                      Dispute History
+                      Today Dispute History
                     </h3>
 
                     {disputes.length === 0 ? (
@@ -202,7 +202,7 @@ const UserHistoryModal = ({ isOpen, onClose, userId, userName }: UserHistoryModa
                           <AlertCircle size={32} className="text-gray-400" />
                         </div>
                         <p className="text-sm text-[#454345] text-center">
-                          No Disputes Involving This User
+                          No Disputes Involving This User Today
                         </p>
                       </div>
                     ) : (
@@ -260,7 +260,7 @@ const UserHistoryModal = ({ isOpen, onClose, userId, userName }: UserHistoryModa
                   {/* Booking History Section */}
                   <div className="flex-1 px-8 space-y-3">
                     <h3 className="text-base font-medium text-[#171417] mb-4">
-                      Booking History
+                      Today Booking History
                     </h3>
 
                     {bookings.length === 0 ? (
@@ -269,7 +269,7 @@ const UserHistoryModal = ({ isOpen, onClose, userId, userName }: UserHistoryModa
                           <Clock size={32} className="text-gray-400" />
                         </div>
                         <p className="text-sm text-[#454345] text-center">
-                          This user hasn&apos;t handled any bookings yet.
+                          This user hasn&apos;t handled any bookings Today.
                         </p>
                       </div>
                     ) : (

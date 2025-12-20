@@ -124,11 +124,11 @@ const ReferralDashboard = () => {
   };
 
   const handleSaveSettings = (settings: any) => {
-    console.log("Saved settings:", settings);
+    // console.log("Saved settings:", settings);
   };
 
   const handleUpdateRules = (rules: any) => {
-    console.log("Updated rules:", rules);
+    // console.log("Updated rules:", rules);
   };
 
   // Close dropdown when clicking outside

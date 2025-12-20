@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle, AlertCircle, X } from "lucide-react";
+import { CheckCircle, AlertCircle } from "lucide-react";
 
 interface ApproveVerificationModalProps {
   isOpen: boolean;
@@ -61,7 +61,7 @@ export const ApproveVerificationModal: React.FC<ApproveVerificationModalProps> =
               <button
                 onClick={onClose}
                 disabled={loading}
-                className="flex items-center justify-center px-6 py-3 rounded-[20px] border border-gradient-to-r from-[#154751] to-[#04171F] text-[#154751] font-medium text-base hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto"
+                className="flex items-center justify-center px-6 py-3 rounded-[20px] border border-[#154751] text-[#154751] font-medium text-base hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto"
               >
                 Cancel
               </button>
@@ -87,13 +87,38 @@ export const RejectVerificationModal: React.FC<RejectVerificationModalProps> = (
   loading = false,
 }) => {
   const [rejectionReason, setRejectionReason] = useState("");
+  const [hasTyped, setHasTyped] = useState(false);
 
-  const handleConfirm = () => {
-    if (rejectionReason.trim()) {
-      onConfirm(rejectionReason);
+  // Reset reason when modal closes
+  useEffect(() => {
+    if (!isOpen) {
       setRejectionReason("");
+      setHasTyped(false);
+    }
+  }, [isOpen]);
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setRejectionReason(e.target.value);
+    if (!hasTyped && e.target.value.trim().length > 0) {
+      setHasTyped(true);
     }
   };
+
+  const handleConfirm = () => {
+    const trimmedReason = rejectionReason.trim();
+    if (trimmedReason) {
+      onConfirm(trimmedReason);
+      // Don't reset here, let useEffect handle it when modal closes
+    }
+  };
+
+  const handleClose = () => {
+    setRejectionReason("");
+    setHasTyped(false);
+    onClose();
+  };
+
+  const isButtonDisabled = loading || !rejectionReason.trim();
 
   return (
     <AnimatePresence>
@@ -122,39 +147,50 @@ export const RejectVerificationModal: React.FC<RejectVerificationModalProps> = (
                   You are about to reject this user's verification.
                 </p>
                 <p className="text-[#171417] font-regular text-base">
-                  This confirms that the submitted details match the third party verification records.
+                  Please provide a clear reason for rejection to help the user understand what needs to be corrected.
                 </p>
               </div>
             </div>
 
             {/* Rejection Reason Input */}
             <div className="flex flex-col gap-2 mb-6">
-              <label className="text-[#171417] font-medium text-base">
+              <label htmlFor="rejection-reason" className="text-[#171417] font-medium text-base">
                 Reason for Rejection <span className="text-[#D84040]">*</span>
               </label>
               <textarea
+                id="rejection-reason"
                 value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Enter reason for rejection"
+                onChange={handleTextChange}
+                placeholder="Enter reason for rejection (e.g., 'Selfie does not match BVN record')"
                 disabled={loading}
-                className="w-full px-4 py-3 rounded-[8px] border border-[#B2B2B4] text-[#171417] placeholder-[#949394] font-regular text-base focus:outline-none focus:ring-2 focus:ring-[#154751] disabled:bg-gray-100 disabled:cursor-not-allowed resize-none"
+                className="w-full px-4 py-3 rounded-[8px] border border-[#B2B2B4] text-[#171417] placeholder-[#949394] font-regular text-base focus:outline-none focus:ring-2 focus:ring-[#D84040] disabled:bg-gray-100 disabled:cursor-not-allowed resize-none"
                 rows={4}
+                autoFocus
               />
+              {rejectionReason.trim().length > 0 && (
+                <p className="text-xs text-gray-600">
+                  {rejectionReason.trim().length} characters
+                </p>
+              )}
             </div>
 
             {/* Action Buttons */}
             <div className="flex flex-col md:flex-row gap-6 justify-end">
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 disabled={loading}
-                className="flex items-center justify-center px-6 py-3 rounded-[20px] border border-gradient-to-r from-[#154751] to-[#04171F] text-[#154751] font-medium text-base hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto"
+                className="flex items-center justify-center px-6 py-3 rounded-[20px] border border-[#154751] text-[#154751] font-medium text-base hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirm}
-                disabled={loading || !rejectionReason.trim()}
-                className="flex items-center justify-center px-6 py-3 rounded-[20px] bg-[#DA8E85] text-white font-medium text-base hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto"
+                disabled={isButtonDisabled}
+                className={`flex items-center justify-center px-6 py-3 rounded-[20px] text-white font-medium text-base transition disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto ${
+                  hasTyped && rejectionReason.trim() 
+                    ? 'bg-[#C62828] hover:bg-[#B71C1C]' 
+                    : 'bg-[#DA8E85]'
+                }`}
               >
                 {loading ? "Processing..." : "Reject Verification"}
               </button>

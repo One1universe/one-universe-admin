@@ -83,7 +83,7 @@ const DisputeDetailsModal = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
     } catch (err) {
-      console.error("Download error:", err);
+      // console.error("Download error:", err);
       setError("Failed to download file");
     } finally {
       setDownloading(null);
@@ -145,7 +145,7 @@ const DisputeDetailsModal = () => {
 
       // Clear error on success
       setError(null);
-      console.log("Dispute resolved successfully:", response);
+      // console.log("Dispute resolved successfully:", response);
 
       // Close modal after a short delay to show success
       setTimeout(() => {
@@ -155,7 +155,7 @@ const DisputeDetailsModal = () => {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to resolve dispute";
       setError(errorMessage);
-      console.error("Dispute resolution error:", err);
+      // console.error("Dispute resolution error:", err);
     } finally {
       setResolving(false);
     }

@@ -34,7 +34,7 @@ const ReferralEmptyState = () => {
         }}
         onClick={() => {
           // Add your navigation/action logic here
-          console.log('Create offer clicked');
+          // console.log('Create offer clicked');
         }}
       >
         {/* Plus icon */}

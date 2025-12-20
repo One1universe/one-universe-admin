@@ -61,7 +61,7 @@ export default function PaymentTable({ data }: PaymentTableProps) {
         alert("Failed to load transaction details");
       }
     } catch (error) {
-      console.error("Error loading payment details:", error);
+      // console.error("Error loading payment details:", error);
       alert("Failed to load payment details");
     } finally {
       setIsLoadingDetails(false);

@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CheckCircle, XCircle, AlertCircle, X } from "lucide-react";
+import { platformSettingsStore } from "@/store/platformSettingsStore";
 
 interface ToastProps {
   type: "success" | "error" | "warning";
@@ -24,12 +25,18 @@ const Toast: React.FC<ToastProps> = ({ type, title, message, onClose }) => {
   };
 
   return (
-    <div className={`fixed top-6 right-6 z-[9999] w-[90%] max-w-[473px] bg-white rounded-lg shadow-2xl ${borders[type]} animate-in slide-in-from-top-2 fade-in duration-300`}>
+    <div
+      className={`fixed top-6 right-6 z-[9999] w-[90%] max-w-[473px] bg-white rounded-lg shadow-2xl ${borders[type]} animate-in slide-in-from-top-2 fade-in duration-300`}
+    >
       <div className="flex gap-4 px-5 py-4">
         {icons[type]}
         <div className="flex-1">
-          <h4 className="font-dm-sans font-bold text-base text-[#06070E]">{title}</h4>
-          <p className="font-dm-sans text-sm text-[#454345] mt-1 leading-tight">{message}</p>
+          <h4 className="font-dm-sans font-bold text-base text-[#06070E]">
+            {title}
+          </h4>
+          <p className="font-dm-sans text-sm text-[#454345] mt-1 leading-tight">
+            {message}
+          </p>
         </div>
         <button
           onClick={onClose}
@@ -46,9 +53,96 @@ const PlatformChargesDashboard = () => {
   const [fee, setFee] = useState("");
   const [toast, setToast] = useState<ToastProps | null>(null);
 
-  const currentFee = 5;
+  // Get settings ID from environment variable
+  const settingsId = process.env.NEXT_PUBLIC_PLATFORM_SETTINGS_ID;
 
-  const handleUpdate = () => {
+  // Get store state
+  const {
+    platformSettings,
+    loading,
+    error,
+    updatingFee,
+    updateError,
+    updateSuccess,
+    fetchPlatformSettings,
+    updatePlatformFee,
+    clearUpdateSuccess,
+    clearError,
+  } = platformSettingsStore();
+
+  // ✅ Fetch settings on mount
+  useEffect(() => {
+    if (!settingsId) {
+      console.error("❌ NEXT_PUBLIC_PLATFORM_SETTINGS_ID is not set in environment variables");
+      setToast({
+        type: "error",
+        title: "Configuration Error",
+        message: "Platform settings ID is not configured",
+        onClose: () => setToast(null),
+      });
+      return;
+    }
+
+    const loadSettings = async () => {
+      try {
+        await fetchPlatformSettings(settingsId);
+      } catch (err) {
+        console.error("Failed to load platform settings:", err);
+      }
+    };
+
+    loadSettings();
+  }, [settingsId, fetchPlatformSettings]);
+
+  // ✅ Auto-dismiss success toast
+  useEffect(() => {
+    if (updateSuccess) {
+      setToast({
+        type: "success",
+        title: "Update Successful",
+        message: `Platform fee updated successfully to ${platformSettings?.platformFeePercentage}%.`,
+        onClose: () => {
+          setToast(null);
+          clearUpdateSuccess();
+          setFee("");
+        },
+      });
+    }
+  }, [updateSuccess, platformSettings?.platformFeePercentage, clearUpdateSuccess]);
+
+  // ✅ Show error toast
+  useEffect(() => {
+    if (updateError) {
+      setToast({
+        type: "error",
+        title: "Update Failed",
+        message: updateError,
+        onClose: () => {
+          setToast(null);
+          clearError();
+        },
+      });
+    }
+  }, [updateError, clearError]);
+
+  // ✅ Show fetch error toast
+  useEffect(() => {
+    if (error) {
+      setToast({
+        type: "error",
+        title: "Error Loading Settings",
+        message: error,
+        onClose: () => {
+          setToast(null);
+          clearError();
+        },
+      });
+    }
+  }, [error, clearError]);
+
+  const currentFee = platformSettings?.platformFeePercentage || 0;
+
+  const handleUpdate = async () => {
     const num = parseFloat(fee);
 
     if (!fee || isNaN(num) || num < 1 || num > 100) {
@@ -61,27 +155,35 @@ const PlatformChargesDashboard = () => {
       return;
     }
 
-    setTimeout(() => {
-      if (Math.random() > 0.2) {
-        setToast({
-          type: "success",
-          title: "Update Successful",
-          message: `Platform fee updated successfully to ${num}%.`,
-          onClose: () => setToast(null),
-        });
-      } else {
-        setToast({
-          type: "error",
-          title: "Update Failed",
-          message: "Unable to update platform fee. Please try again later.",
-          onClose: () => setToast(null),
-        });
-      }
-    }, 800);
+    if (!platformSettings?.id) {
+      setToast({
+        type: "error",
+        title: "Error",
+        message: "Platform settings not loaded. Please refresh the page.",
+        onClose: () => setToast(null),
+      });
+      return;
+    }
+
+    // Call the store action
+    const success = await updatePlatformFee(platformSettings.id, num);
+
+    if (!success) {
+      // Error toast is shown by useEffect above
+      console.error("Failed to update platform fee");
+    }
   };
 
-  const isValid = fee === "" || (!isNaN(parseFloat(fee)) && parseFloat(fee) >= 1 && parseFloat(fee) <= 100);
-  const isActive = fee !== "" && isValid && parseFloat(fee) !== currentFee;
+  const isValid =
+    fee === "" ||
+    (!isNaN(parseFloat(fee)) &&
+      parseFloat(fee) >= 1 &&
+      parseFloat(fee) <= 100);
+  const isActive =
+    fee !== "" &&
+    isValid &&
+    parseFloat(fee) !== currentFee &&
+    !updatingFee;
 
   return (
     <>
@@ -96,16 +198,29 @@ const PlatformChargesDashboard = () => {
           </p>
         </div>
 
-        {/* Current Fee Card */}
-        <div className="bg-[#FFFCFC] border-l-4 border-l-[#154751] rounded-r-lg p-6 max-w-2xl">
-          <div>
-            <p className="font-dm-sans text-xs text-[#6B6969]">Current Platform Fee</p>
-            <p className="font-dm-sans font-bold text-xl text-[#171417] mt-1">
-              {currentFee}%{" "}
-              <span className="text-sm font-normal text-[#6B6969]">(default)</span>
-            </p>
+        {/* Loading State */}
+        {loading && (
+          <div className="bg-[#FFFCFC] border-l-4 border-l-[#154751] rounded-r-lg p-6 max-w-2xl">
+            <p className="font-dm-sans text-sm text-[#6B6969]">Loading settings...</p>
           </div>
-        </div>
+        )}
+
+        {/* Current Fee Card */}
+        {!loading && platformSettings && (
+          <div className="bg-[#FFFCFC] border-l-4 border-l-[#154751] rounded-r-lg p-6 max-w-2xl">
+            <div>
+              <p className="font-dm-sans text-xs text-[#6B6969]">
+                Current Platform Fee
+              </p>
+              <p className="font-dm-sans font-bold text-xl text-[#171417] mt-1">
+                {currentFee}%{" "}
+                <span className="text-sm font-normal text-[#6B6969]">
+                  (default)
+                </span>
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Update Form */}
         <div className="space-y-6 max-w-2xl">
@@ -118,10 +233,15 @@ const PlatformChargesDashboard = () => {
                 type="text"
                 value={fee}
                 onChange={(e) =>
-                  setFee(e.target.value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1"))
+                  setFee(
+                    e.target.value
+                      .replace(/[^0-9.]/g, "")
+                      .replace(/(\..*)\./g, "$1")
+                  )
                 }
                 placeholder="Enter percentage"
-                className="w-full h-12 px-4 rounded-xl border border-[#B2B2B4] font-dm-sans text-base text-center focus:outline-none focus:border-[#154751] transition-colors"
+                disabled={loading || updatingFee}
+                className="w-full h-12 px-4 rounded-xl border border-[#B2B2B4] font-dm-sans text-base text-center focus:outline-none focus:border-[#154751] transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
             </div>
           </div>
@@ -138,9 +258,48 @@ const PlatformChargesDashboard = () => {
                 : "linear-gradient(0deg, #ACC5CF, #ACC5CF)",
             }}
           >
-            Update Platform Fee
+            {updatingFee ? "Updating..." : "Update Platform Fee"}
           </button>
         </div>
+
+        {/* Additional Settings Display */}
+        {!loading && platformSettings && (
+          <div className="bg-[#F5F5F5] rounded-lg p-6 max-w-2xl space-y-4">
+            <h3 className="font-dm-sans font-medium text-base text-[#171417]">
+              Other Platform Settings
+            </h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-[#6B6969]">Max Transaction Amount:</span>
+                <span className="font-medium text-[#171417]">
+                  N{platformSettings.maxTransactionAmount}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#6B6969]">Reward Eligibility Days:</span>
+                <span className="font-medium text-[#171417]">
+                  {platformSettings.rewardEligibilityDays} days
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#6B6969]">Max Referrals Per User/Month:</span>
+                <span className="font-medium text-[#171417]">
+                  {platformSettings.maxReferralsPerUserPerMonth}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#6B6969]">Status:</span>
+                <span
+                  className={`font-medium ${
+                    platformSettings.active ? "text-[#1FC16B]" : "text-[#D84040]"
+                  }`}
+                >
+                  {platformSettings.active ? "Active" : "Inactive"}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Toast at Top Right */}

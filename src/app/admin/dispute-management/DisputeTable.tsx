@@ -51,7 +51,7 @@ export default function DisputeTable({
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
     } catch (error) {
-      console.error("Download error:", error);
+      // console.error("Download error:", error);
       alert("Failed to download file");
     }
   };

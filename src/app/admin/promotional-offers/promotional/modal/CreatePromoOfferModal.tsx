@@ -93,7 +93,7 @@ export default function CreatePromoOfferModal({
         rewardUnit: formData.rewardUnit,
       };
 
-      console.log("📤 Sending payload to backend:", JSON.stringify(payload, null, 2));
+      // console.log("📤 Sending payload to backend:", JSON.stringify(payload, null, 2));
 
       if (mode === "edit" && offerToEdit) {
         await updatePromotion(offerToEdit.id, payload);
@@ -116,7 +116,7 @@ export default function CreatePromoOfferModal({
       // Refetch with validated parameters
       const validPage = 1;
       const validPageSize = 100;
-      console.log(`🔄 Refetching with page=${validPage}, pageSize=${validPageSize}`);
+      // console.log(`🔄 Refetching with page=${validPage}, pageSize=${validPageSize}`);
       
       await Promise.all([
         fetchAllPromotions(validPage, validPageSize),
@@ -125,7 +125,7 @@ export default function CreatePromoOfferModal({
 
       onClose();
     } catch (err: any) {
-      console.error("❌ Error saving draft:", err);
+      // console.error("❌ Error saving draft:", err);
       showToast(
         "error",
         "Error",
@@ -156,7 +156,7 @@ export default function CreatePromoOfferModal({
         rewardUnit: formData.rewardUnit,
       };
 
-      console.log("📤 Sending payload to backend:", JSON.stringify(payload, null, 2));
+      // console.log("📤 Sending payload to backend:", JSON.stringify(payload, null, 2));
 
       if (mode === "edit" && offerToEdit) {
         await updatePromotion(offerToEdit.id, payload);
@@ -179,7 +179,7 @@ export default function CreatePromoOfferModal({
       // Refetch with validated parameters
       const validPage = 1;
       const validPageSize = 100;
-      console.log(`🔄 Refetching with page=${validPage}, pageSize=${validPageSize}`);
+      // console.log(`🔄 Refetching with page=${validPage}, pageSize=${validPageSize}`);
       
       await Promise.all([
         fetchAllPromotions(validPage, validPageSize),
@@ -188,7 +188,7 @@ export default function CreatePromoOfferModal({
 
       onClose();
     } catch (err: any) {
-      console.error("❌ Error publishing promotion:", err);
+      // console.error("❌ Error publishing promotion:", err);
       showToast(
         "error",
         "Error",

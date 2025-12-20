@@ -75,7 +75,7 @@ const DisputeManagementPage = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error("Export failed:", error);
+      // console.error("Export failed:", error);
       alert("Failed to export disputes");
     }
   };

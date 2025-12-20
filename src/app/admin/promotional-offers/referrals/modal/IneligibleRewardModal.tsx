@@ -31,7 +31,7 @@ const MarkIneligibleModal: React.FC<MarkIneligibleModalProps> = ({
     setError(null);
 
     try {
-      console.log('Marking as ineligible...');
+      // console.log('Marking as ineligible...');
       await referralService.markAsIneligibleAdmin({
         referralId,
         reason: reason.trim(),

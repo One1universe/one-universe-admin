@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { SideBarLinks } from "@/data/layoutSidebarData";
 import authService from "@/services/authService";
 import useToastStore from "@/store/useToastStore";
+import { userDetailsStore } from "@/store/userDetailsStore";
 
 export default function AdminDashboardLayout({
   children,
@@ -23,18 +24,25 @@ export default function AdminDashboardLayout({
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const { showToast } = useToastStore();
-  
-  // ✅ IMPROVED: Get profile picture from multiple sources
+
+  // ✅ Get profile picture and loading state from the store
+  const { fullUser, fetchUser } = userDetailsStore();
   const [userProfilePicture, setUserProfilePicture] = useState<string>("/images/user.png");
 
   useEffect(() => {
-    const loadUserProfile = () => {
+    const loadUserProfile = async () => {
       try {
-        // Priority 1: Try NextAuth session
+        // Priority 1: Fetch from userDetailsStore if we have session and accessToken
+        if (session?.user?.id && session?.accessToken) {
+          console.log("🔄 Fetching user profile from API for user:", session.user.id);
+          await fetchUser(session.user.id, session.accessToken);
+          return;
+        }
+
+        // Priority 2: Try NextAuth session image
         if (session?.user?.image) {
           console.log("✅ Profile picture from NextAuth session:", session.user.image);
           setUserProfilePicture(session.user.image);
-          // Save to localStorage for persistence
           const userStr = localStorage.getItem("user");
           if (userStr) {
             const user = JSON.parse(userStr);
@@ -44,7 +52,7 @@ export default function AdminDashboardLayout({
           return;
         }
 
-        // Priority 2: Try localStorage
+        // Priority 3: Try localStorage
         const userStr = localStorage.getItem("user");
         if (userStr) {
           const user = JSON.parse(userStr);
@@ -55,7 +63,7 @@ export default function AdminDashboardLayout({
           }
         }
 
-        // Priority 3: Default image
+        // Priority 4: Default image
         console.log("⚠️ Using default profile picture");
         setUserProfilePicture("/images/user.png");
       } catch (error) {
@@ -65,12 +73,49 @@ export default function AdminDashboardLayout({
     };
 
     loadUserProfile();
-  }, [session?.user?.image]);
+  }, [session?.user?.id, session?.accessToken, fetchUser]);
+
+  // ✅ Update profile picture when fullUser data is available from the store
+  useEffect(() => {
+    if (!fullUser) {
+      console.log("⏳ fullUser is still loading or not available");
+      return;
+    }
+
+    console.log("🔍 DEBUG - fullUser object:", fullUser);
+    console.log("🔍 DEBUG - fullUser.profile:", fullUser.profile);
+    
+    // Check multiple possible paths for profile picture
+    const profilePicture = 
+      fullUser?.profile?.profilePicture ||
+      fullUser?.profilePicture ||
+      fullUser?.profile?.avatar ||
+      fullUser?.avatar;
+
+    if (profilePicture) {
+      console.log("✅ Profile picture from userDetailsStore:", profilePicture);
+      setUserProfilePicture(profilePicture);
+      
+      // Also save to localStorage for persistence
+      try {
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          user.profilePicture = profilePicture;
+          localStorage.setItem("user", JSON.stringify(user));
+        }
+      } catch (error) {
+        console.warn("⚠️ Could not save to localStorage:", error);
+      }
+    } else {
+      console.warn("⚠️ No profile picture found in fullUser. Available keys:", Object.keys(fullUser));
+    }
+  }, [fullUser]);
 
   const handleLogOut = async () => {
     // Clear localStorage when logging out
     localStorage.removeItem("user");
-    
+
     const response = await authService.signout();
     if (response.success) {
       showToast(

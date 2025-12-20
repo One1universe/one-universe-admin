@@ -38,14 +38,14 @@ const PromotionalDashboard = () => {
         const validPage = Math.max(1, Math.floor(1));
         const validPageSize = Math.max(1, Math.floor(100));
         
-        console.log(`🔄 Loading promotions with page=${validPage}, pageSize=${validPageSize}`);
+        // console.log(`🔄 Loading promotions with page=${validPage}, pageSize=${validPageSize}`);
         
         await Promise.all([
           fetchAllPromotions(validPage, validPageSize),
           fetchStats(),
         ]);
       } catch (error) {
-        console.error("Error loading dashboard data:", error);
+        // console.error("Error loading dashboard data:", error);
       }
     };
 
