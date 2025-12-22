@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Search, ChevronDown, Check } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supportTicketStore } from "@/store/supportTicketStore";
@@ -74,8 +74,9 @@ const StatusFilterDropdown = ({
 
 const AdminSupportPage = () => {
   const [activeTab, setActiveTab] = useState("reported-issues");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showRatingsFilter, setShowRatingsFilter] = useState(false);
+  const [searchInput, setSearchInput] = useState(""); // Local input state
+  const [searchQuery, setSearchQuery] = useState(""); // Debounced state for filtering
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
   // ✅ FIXED: Initialize with all statuses selected
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([
@@ -84,9 +85,27 @@ const AdminSupportPage = () => {
     "Resolved",
   ]);
   const [showStatusFilter, setShowStatusFilter] = useState(false);
+  const [showRatingsFilter, setShowRatingsFilter] = useState(false);
 
   // Get total tickets from store
   const { totalTickets } = supportTicketStore();
+
+  // ✅ FIXED: Debounced search to prevent textarea re-renders
+  const handleSearchChange = useCallback((query: string) => {
+    // Immediately update the input field visually
+    setSearchInput(query);
+
+    // Clear existing timer
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+
+    // Set new timer for actual filtering
+    debounceTimer.current = setTimeout(() => {
+      console.log("🔍 Search query updated:", query);
+      setSearchQuery(query);
+    }, 300); // 300ms debounce
+  }, []);
 
   // ✅ FIXED: Proper toggle function with console logging
   const toggleStatus = (status: string) => {
@@ -98,12 +117,6 @@ const AdminSupportPage = () => {
       console.log("✅ Status filter updated:", updated);
       return updated;
     });
-  };
-
-  // ✅ FIXED: Log when search changes
-  const handleSearchChange = (query: string) => {
-    console.log("🔍 Search query updated:", query);
-    setSearchQuery(query);
   };
 
   // ✅ FIXED: Log when tab changes
@@ -159,7 +172,7 @@ const AdminSupportPage = () => {
                   <input
                     type="text"
                     placeholder="Search by username, subject, or ticket ID"
-                    value={searchQuery}
+                    value={searchInput}
                     onChange={(e) => handleSearchChange(e.target.value)}
                     className="w-full h-12 pl-12 pr-4 border border-[#B7B6B7] rounded-lg font-inter text-base placeholder:text-[#7B7B7B] focus:outline-none focus:border-[#04171F] transition"
                   />

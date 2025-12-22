@@ -137,13 +137,27 @@ export const appRatingsStore = create<AppRatingsState>((set, get) => ({
 
       console.log("✅ Reply sent successfully");
 
-      // Update the rating in the list
+      // ✅ FIXED: Merge response with existing rating to preserve user data
       set((state) => ({
-        ratings: state.ratings.map((r) =>
-          r.id === response.id ? response : r
-        ),
+        ratings: state.ratings.map((r) => {
+          if (r.id === response.id) {
+            // Merge: use response data but preserve user if it's missing in response
+            return {
+              ...r,
+              ...response,
+              // Explicitly preserve user data if response doesn't have it
+              user: response.user || r.user,
+            };
+          }
+          return r;
+        }),
         selectedRating: state.selectedRating?.id === response.id
-          ? response
+          ? {
+              ...state.selectedRating,
+              ...response,
+              // Preserve user data
+              user: response.user || state.selectedRating.user,
+            }
           : state.selectedRating,
         replyError: null,
       }));
