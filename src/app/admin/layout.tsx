@@ -12,7 +12,7 @@ import { SideBarLinks } from "@/data/layoutSidebarData";
 import authService from "@/services/authService";
 import useToastStore from "@/store/useToastStore";
 import { userDetailsStore } from "@/store/userDetailsStore";
-import NotificationsPanel from "./notification/NotificationsPanel";
+import NotificationsPanel from "../admin/notification/NotificationsPanel";
 
 export default function AdminDashboardLayout({
   children,
