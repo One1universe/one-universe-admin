@@ -1,4 +1,3 @@
-// app/admin/settings/page.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -40,7 +39,7 @@ const Toast: React.FC<Toast & { onClose: () => void }> = ({
   onClose,
 }) => {
   useEffect(() => {
-    const timer = setTimeout(onClose, 4000); // Auto-dismiss after 4 seconds
+    const timer = setTimeout(onClose, 4000);
     return () => clearTimeout(timer);
   }, [onClose]);
 
@@ -70,7 +69,6 @@ const Toast: React.FC<Toast & { onClose: () => void }> = ({
   );
 };
 
-// Toast Container to hold multiple toasts
 const ToastContainer: React.FC<{ toasts: Toast[]; onRemove: (id: string) => void }> = ({
   toasts,
   onRemove,
@@ -90,9 +88,8 @@ const ToastContainer: React.FC<{ toasts: Toast[]; onRemove: (id: string) => void
   );
 };
 
-
 // ============================================================================
-// OTP MODAL COMPONENT - Request and verify OTP
+// OTP MODAL - Errors only via toast
 // ============================================================================
 const OTPModal: React.FC<{
   onClose: () => void;
@@ -105,7 +102,6 @@ const OTPModal: React.FC<{
 }> = ({ onClose, onOTPReceived, email, isLoading, error, token, showToast }) => {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [verifying, setVerifying] = useState(false);
-  const [verifyError, setVerifyError] = useState<string | null>(null);
 
   const handleChange = (i: number, value: string) => {
     if (/^\d?$/.test(value)) {
@@ -123,36 +119,42 @@ const OTPModal: React.FC<{
 
   const handleVerifyOTP = async () => {
     if (!isComplete) {
-      setVerifyError("Please enter all 6 digits");
+      showToast("Please enter all 6 digits of the OTP", "error");
       return;
     }
 
     setVerifying(true);
-    setVerifyError(null);
 
     try {
-      console.log("🔐 Verifying OTP in modal...");
-      // Verify the OTP immediately
       await authService.verifyPasswordResetOTP(email, otpCode, token);
-      console.log("✅ OTP verified successfully in modal");
-
-      // Show success toast
       showToast("OTP verified successfully! ✓", "success");
-
-      // OTP is valid, proceed to password change
       setTimeout(() => onOTPReceived(), 500);
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "Failed to verify OTP";
-      setVerifyError(errorMessage);
-      console.error("OTP verification error:", errorMessage);
+        err instanceof Error ? err.message : "Invalid or expired OTP";
 
-      // Show error toast
-      showToast(`OTP verification failed: ${errorMessage}`, "error");
+      const friendlyMessage =
+        errorMessage.toLowerCase().includes("invalid") ||
+        errorMessage.toLowerCase().includes("expired")
+          ? "The OTP you entered is incorrect or has expired. Please try again."
+          : "Failed to verify OTP. Please try again.";
+
+      showToast(friendlyMessage, "error");
     } finally {
       setVerifying(false);
     }
   };
+
+  useEffect(() => {
+    if (error) {
+      showToast(
+        error.includes("send")
+          ? "Failed to send OTP. Please try again."
+          : error,
+        "error"
+      );
+    }
+  }, [error, showToast]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
@@ -167,22 +169,6 @@ const OTPModal: React.FC<{
             We sent a 6-digit code to <br /> <strong>{email}</strong>
           </p>
         </div>
-
-        {/* OTP Request Error */}
-        {error && !verifyError && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
-            <AlertCircle className="text-red-500" size={18} />
-            <p className="text-red-700 text-sm">{error}</p>
-          </div>
-        )}
-
-        {/* OTP Verification Error */}
-        {verifyError && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
-            <AlertCircle className="text-red-500" size={18} />
-            <p className="text-red-700 text-sm">{verifyError}</p>
-          </div>
-        )}
 
         <div className="flex justify-center gap-2">
           {otp.map((_, i) => (
@@ -230,7 +216,7 @@ const OTPModal: React.FC<{
 };
 
 // ============================================================================
-// PASSWORD CHANGE MODAL COMPONENT - With current password (OTP pre-verified)
+// PASSWORD CHANGE MODAL - Errors only via toast
 // ============================================================================
 const PasswordChangeModal: React.FC<{
   onClose: () => void;
@@ -242,7 +228,6 @@ const PasswordChangeModal: React.FC<{
   const [newPass, setNewPass] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
@@ -266,40 +251,29 @@ const PasswordChangeModal: React.FC<{
 
   const handleChangePassword = async () => {
     if (!canSubmit) {
-      setError("Please fill all requirements");
+      showToast("Please complete all password requirements", "error");
       return;
     }
 
     setLoading(true);
-    setError(null);
 
     try {
-      console.log("🔐 Changing password (OTP already verified)...");
-
-      // OTP was already verified in the OTPModal
-      // Now just change the password
-      const result = await authService.changePassword(
-        currentPassword,
-        newPass,
-        confirm,
-        token
-      );
-
-      console.log("✅ Password changed successfully:", result);
-
-      // Show success toast
+      await authService.changePassword(currentPassword, newPass, confirm, token);
       showToast("Password changed successfully! ✓", "success");
-
-      // Close after toast animation
       setTimeout(() => onClose(), 500);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to change password";
-      setError(errorMessage);
-      console.error("Password change error:", errorMessage);
 
-      // Show error toast
-      showToast(`Password change failed: ${errorMessage}`, "error");
+      const friendlyMessage = errorMessage
+        .toLowerCase()
+        .includes("current password")
+        ? "The current password you entered is incorrect."
+        : errorMessage.toLowerCase().includes("match")
+        ? "New passwords do not match."
+        : "Failed to update password. Please try again.";
+
+      showToast(friendlyMessage, "error");
     } finally {
       setLoading(false);
     }
@@ -314,23 +288,12 @@ const PasswordChangeModal: React.FC<{
           <h2 className="font-dm-sans font-bold text-2xl text-[#171417]">
             Change Password
           </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X size={28} />
           </button>
         </div>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
-            <AlertCircle className="text-red-500" size={18} />
-            <p className="text-red-700 text-sm">{error}</p>
-          </div>
-        )}
-
         <div className="space-y-4">
-          {/* Current Password */}
           <div className="relative">
             <label className="block font-dm-sans font-medium mb-2">
               Current Password
@@ -351,7 +314,6 @@ const PasswordChangeModal: React.FC<{
             </button>
           </div>
 
-          {/* New Password */}
           <div className="relative">
             <label className="block font-dm-sans font-medium mb-2">
               New Password
@@ -372,7 +334,6 @@ const PasswordChangeModal: React.FC<{
             </button>
           </div>
 
-          {/* Confirm Password */}
           <div className="relative">
             <label className="block font-dm-sans font-medium mb-2">
               Confirm New Password
@@ -393,7 +354,6 @@ const PasswordChangeModal: React.FC<{
             </button>
           </div>
 
-          {/* Validation */}
           <div className="flex flex-wrap gap-2">
             {[
               { valid: hasMin, text: "8+ characters" },
@@ -444,7 +404,7 @@ const PasswordChangeModal: React.FC<{
 };
 
 // ============================================================================
-// MAIN SETTINGS PAGE
+// MAIN SETTINGS PAGE - FULL VERSION
 // ============================================================================
 const SettingsPage = () => {
   const { data: session, status } = useSession();
@@ -459,7 +419,6 @@ const SettingsPage = () => {
     fetchProfile,
     updateProfile,
     uploadProfilePicture,
-    clearError,
   } = useProfileStore();
 
   const [activeTab, setActiveTab] = useState("account");
@@ -469,88 +428,49 @@ const SettingsPage = () => {
   const [sessionError, setSessionError] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Password flow
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
   const [isRequestingOTP, setIsRequestingOTP] = useState(false);
 
-  // Toast management
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  // Add toast notification
   const showToast = (message: string, type: "success" | "error") => {
     const id = Date.now().toString();
-    const newToast: Toast = { id, message, type };
-    setToasts((prev) => [...prev, newToast]);
+    setToasts((prev) => [...prev, { id, message, type }]);
   };
 
-  // Remove toast notification
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   };
 
-  // Debug session info
   useEffect(() => {
-    console.log("🔐 Session Status:", {
-      status,
-      hasSession: !!session,
-      hasAccessToken: !!session?.accessToken,
-      hasUserId: !!session?.user?.id,
-      user: session?.user?.email,
-      accessTokenLength: session?.accessToken
-        ? session.accessToken.length
-        : 0,
-    });
-  }, [session, status]);
-
-  // Fetch profile on mount with better error handling
-  useEffect(() => {
-    if (status === "loading") {
-      console.log("⏳ Session loading...");
-      return;
-    }
+    if (status === "loading") return;
 
     if (status === "unauthenticated") {
       setSessionError("You are not authenticated. Please log in.");
-      console.error("❌ User is not authenticated");
       return;
     }
 
-    if (!session?.accessToken) {
-      setSessionError("No access token found. Please log in again.");
-      console.error("❌ Missing access token");
+    if (!session?.accessToken || !session?.user?.id) {
+      setSessionError("Invalid session. Please log in again.");
       return;
     }
 
-    if (!session?.user?.id) {
-      setSessionError("User ID not found. Please log in again.");
-      console.error("❌ Missing user ID");
-      return;
-    }
-
-    console.log("✅ Fetching profile with valid session");
     setSessionError(null);
     fetchProfile(session.user.id, session.accessToken);
   }, [session, status, fetchProfile]);
 
-  // Update local state when profile is loaded or updated
   useEffect(() => {
     if (profile) {
-      console.log("🔄 Syncing local state with updated profile");
       setFullName(profile.fullName);
       setEmail(profile.email);
-      console.log("✅ Local state synced:", {
-        fullName: profile.fullName,
-        email: profile.email,
-      });
     }
   }, [profile]);
 
-  // Request OTP for password reset
   const startPasswordChange = async () => {
     if (!session?.accessToken || !email) {
-      alert("Please log in to change password");
+      showToast("Please log in to change password", "error");
       return;
     }
 
@@ -558,118 +478,83 @@ const SettingsPage = () => {
     setOtpError(null);
 
     try {
-      console.log("📧 Requesting OTP for password change...");
       await authService.requestPasswordResetOTP(email, session.accessToken);
-      console.log("✅ OTP requested successfully");
       setShowOtpModal(true);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to request OTP";
       setOtpError(errorMessage);
-      console.error("OTP request error:", errorMessage);
+      showToast(errorMessage, "error");
     } finally {
       setIsRequestingOTP(false);
     }
   };
 
-  // Verify OTP and open password change modal
   const verifyOtp = () => {
-    console.log("✅ OTP verified in modal, opening password change modal");
     setShowOtpModal(false);
     setShowPasswordModal(true);
   };
 
   const handleSaveChanges = async () => {
     if (!session?.accessToken) {
-      alert("You must be logged in to update your profile");
+      showToast("You must be logged in to update your profile", "error");
       return;
     }
 
-    if (!fullName || !fullName.trim()) {
-      alert("Full name cannot be empty");
-      return;
-    }
-
-    if (!email || !email.trim()) {
-      alert("Email is required");
+    if (!fullName.trim() || !email.trim()) {
+      showToast("Full name and email are required", "error");
       return;
     }
 
     const success = await updateProfile(
-      {
-        fullName: fullName.trim(),
-        email: email.trim(),
-      },
+      { fullName: fullName.trim(), email: email.trim() },
       session.accessToken
     );
 
     if (success) {
-      // Refresh the full profile to get all updated data including picture
-      console.log("🔄 Refreshing full profile after update...");
       await fetchProfile(session.user.id, session.accessToken);
-      
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
-    } else {
-      alert(updateError || "Failed to update profile");
     }
   };
 
-  // Get role name from profile
   const getRoleName = () => {
     if (!profile?.userRoles || profile.userRoles.length === 0) return "Admin";
     return profile.userRoles[0].role.name.replace("_", " ");
   };
 
-  // Handle profile picture upload
   const handleProfilePictureChange = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith("image/")) {
-      alert("Please select a valid image file");
+      showToast("Please select a valid image file", "error");
       return;
     }
 
-    // Validate file size (max 2MB - will be larger after base64 encoding)
-    // We compress it, but base64 is still larger than binary
     if (file.size > 2 * 1024 * 1024) {
-      alert("Image size must be less than 2MB. The image will be automatically compressed.");
+      showToast("Image size must be less than 2MB", "error");
       return;
     }
 
-    if (!session?.accessToken) {
-      alert("You must be logged in to upload profile picture");
+    if (!session?.accessToken || !email) {
+      showToast("Session error. Please log in again.", "error");
       return;
     }
 
-    if (!email || !email.trim()) {
-      alert("Email is required for profile picture upload");
-      return;
-    }
-
-    const imageUrl = await uploadProfilePicture(
-      file,
-      session.accessToken,
-      email
-    );
+    const imageUrl = await uploadProfilePicture(file, session.accessToken, email);
     if (imageUrl) {
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
-    } else {
-      alert(uploadError || "Failed to upload profile picture");
     }
   };
 
-  // Trigger file input click
   const handleCameraClick = () => {
     fileInputRef.current?.click();
   };
 
-  // Show loading state while session is being checked
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -681,16 +566,13 @@ const SettingsPage = () => {
     );
   }
 
-  // Show error if not authenticated
   if (status === "unauthenticated") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 max-w-md">
           <div className="flex items-center gap-3 mb-2">
             <AlertCircle className="text-red-500" size={24} />
-            <h2 className="font-bold text-red-700">
-              Authentication Required
-            </h2>
+            <h2 className="font-bold text-red-700">Authentication Required</h2>
           </div>
           <p className="text-red-600 text-sm">
             Please log in to access your settings.
@@ -711,12 +593,10 @@ const SettingsPage = () => {
                 Settings
               </h1>
               <p className="font-dm-sans text-base text-[#6B6969]">
-                Assign and manage what each admin can access, view, and
-                control.
+                Assign and manage what each admin can access, view, and control.
               </p>
             </div>
 
-            {/* Session Error Alert */}
             {sessionError && (
               <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
                 <AlertCircle className="text-red-500" size={20} />
@@ -752,14 +632,12 @@ const SettingsPage = () => {
               <div className="flex-1 min-w-0 overflow-x-hidden">
                 {activeTab === "account" && (
                   <div className="space-y-12">
-                    {/* Loading State */}
                     {loading && (
                       <div className="flex items-center justify-center py-12">
                         <Loader2 className="w-8 h-8 animate-spin text-[#154751]" />
                       </div>
                     )}
 
-                    {/* Error State */}
                     {error && !loading && (
                       <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
                         <AlertCircle className="text-red-500" size={20} />
@@ -767,7 +645,6 @@ const SettingsPage = () => {
                       </div>
                     )}
 
-                    {/* Success Message */}
                     {showSuccess && (
                       <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
                         <Check className="text-green-500" size={20} />
@@ -777,7 +654,6 @@ const SettingsPage = () => {
                       </div>
                     )}
 
-                    {/* Profile Content */}
                     {!loading && profile && (
                       <>
                         <div className="text-center">
@@ -828,9 +704,7 @@ const SettingsPage = () => {
                               <input
                                 type="text"
                                 value={fullName || ""}
-                                onChange={(e) =>
-                                  setFullName(e.target.value)
-                                }
+                                onChange={(e) => setFullName(e.target.value)}
                                 className="w-full h-12 px-4 rounded-xl border border-[#B2B2B4] focus:border-[#154751] outline-none"
                                 disabled={updating}
                               />
@@ -848,33 +722,20 @@ const SettingsPage = () => {
                             </div>
                           </div>
 
-                          {/* Update Error */}
                           {updateError && (
                             <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
-                              <AlertCircle
-                                className="text-red-500"
-                                size={18}
-                              />
-                              <p className="text-red-700 text-sm">
-                                {updateError}
-                              </p>
+                              <AlertCircle className="text-red-500" size={18} />
+                              <p className="text-red-700 text-sm">{updateError}</p>
                             </div>
                           )}
 
-                          {/* Upload Error */}
                           {uploadError && (
                             <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
-                              <AlertCircle
-                                className="text-red-500"
-                                size={18}
-                              />
-                              <p className="text-red-700 text-sm">
-                                {uploadError}
-                              </p>
+                              <AlertCircle className="text-red-500" size={18} />
+                              <p className="text-red-700 text-sm">{uploadError}</p>
                             </div>
                           )}
 
-                          {/* Save Changes Button */}
                           <button
                             onClick={handleSaveChanges}
                             disabled={
@@ -901,7 +762,6 @@ const SettingsPage = () => {
                           </button>
                         </div>
 
-                        {/* Password Section */}
                         <div className="pt-8 border-t border-[#E3E5E5]">
                           <div className="flex justify-between items-center">
                             <div>
@@ -938,9 +798,7 @@ const SettingsPage = () => {
                 )}
 
                 {activeTab === "notifications" && <NotificationTab />}
-                {activeTab === "subscription" && (
-                  <SubscriptionDashboard />
-                )}
+                {activeTab === "subscription" && <SubscriptionDashboard />}
                 {activeTab === "ads" && <SponsorAdsDashboard />}
                 {activeTab === "charges" && <PlatformChargesDashboard />}
               </div>
@@ -956,7 +814,6 @@ const SettingsPage = () => {
             </h1>
           </div>
 
-          {/* Session Error Alert */}
           {sessionError && (
             <div className="mx-5 mt-4 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
               <AlertCircle className="text-red-500" size={20} />
@@ -991,14 +848,12 @@ const SettingsPage = () => {
           <div className="bg-gray-50 min-h-screen">
             {activeTab === "account" && (
               <div className="bg-white px-5 py-8 space-y-8">
-                {/* Loading State */}
                 {loading && (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="w-8 h-8 animate-spin text-[#154751]" />
                   </div>
                 )}
 
-                {/* Error State */}
                 {error && !loading && (
                   <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
                     <AlertCircle className="text-red-500" size={20} />
@@ -1006,7 +861,6 @@ const SettingsPage = () => {
                   </div>
                 )}
 
-                {/* Success Message */}
                 {showSuccess && (
                   <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
                     <Check className="text-green-500" size={20} />
@@ -1016,7 +870,6 @@ const SettingsPage = () => {
                   </div>
                 )}
 
-                {/* Profile Content */}
                 {!loading && profile && (
                   <>
                     <div className="text-center">
@@ -1042,27 +895,20 @@ const SettingsPage = () => {
                           disabled={uploadingImage}
                           className="absolute bottom-0 right-0 w-9 h-9 bg-white rounded-full border-2 border-[#154751] flex items-center justify-center hover:bg-gray-50 transition-colors disabled:opacity-50"
                         >
-                          <Camera
-                            size={18}
-                            className="text-[#154751]"
-                          />
+                          <Camera size={18} className="text-[#154751]" />
                         </button>
                         <input
                           ref={fileInputRef}
                           type="file"
                           accept="image/*"
-                          onChange={
-                            handleProfilePictureChange
-                          }
+                          onChange={handleProfilePictureChange}
                           className="hidden"
                         />
                       </div>
                       <h2 className="mt-4 font-dm-sans font-bold text-xl">
                         {profile.fullName}
                       </h2>
-                      <p className="text-[#6B6969] text-sm">
-                        {getRoleName()}
-                      </p>
+                      <p className="text-[#6B6969] text-sm">{getRoleName()}</p>
                     </div>
 
                     <div className="space-y-5">
@@ -1073,9 +919,7 @@ const SettingsPage = () => {
                         <input
                           type="text"
                           value={fullName || ""}
-                          onChange={(e) =>
-                            setFullName(e.target.value)
-                          }
+                          onChange={(e) => setFullName(e.target.value)}
                           className="w-full h-12 px-4 rounded-xl border border-[#B2B2B4] focus:border-[#154751] outline-none"
                           disabled={updating}
                         />
@@ -1092,33 +936,20 @@ const SettingsPage = () => {
                         />
                       </div>
 
-                      {/* Update Error */}
                       {updateError && (
                         <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
-                          <AlertCircle
-                            className="text-red-500"
-                            size={18}
-                          />
-                          <p className="text-red-700 text-sm">
-                            {updateError}
-                          </p>
+                          <AlertCircle className="text-red-500" size={18} />
+                          <p className="text-red-700 text-sm">{updateError}</p>
                         </div>
                       )}
 
-                      {/* Upload Error */}
                       {uploadError && (
                         <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
-                          <AlertCircle
-                            className="text-red-500"
-                            size={18}
-                          />
-                          <p className="text-red-700 text-sm">
-                            {uploadError}
-                          </p>
+                          <AlertCircle className="text-red-500" size={18} />
+                          <p className="text-red-700 text-sm">{uploadError}</p>
                         </div>
                       )}
 
-                      {/* Save Changes Button - Mobile */}
                       <button
                         onClick={handleSaveChanges}
                         disabled={
@@ -1144,7 +975,6 @@ const SettingsPage = () => {
                         )}
                       </button>
 
-                      {/* Mobile Password Button */}
                       <button
                         onClick={startPasswordChange}
                         disabled={isRequestingOTP}
@@ -1170,9 +1000,7 @@ const SettingsPage = () => {
             )}
 
             {activeTab === "notifications" && <NotificationTab />}
-            {activeTab === "subscription" && (
-              <SubscriptionDashboard />
-            )}
+            {activeTab === "subscription" && <SubscriptionDashboard />}
             {activeTab === "ads" && <SponsorAdsDashboard />}
             {activeTab === "charges" && <PlatformChargesDashboard />}
           </div>
@@ -1191,11 +1019,11 @@ const SettingsPage = () => {
           showToast={showToast}
         />
       )}
+
       {showPasswordModal && (
         <PasswordChangeModal
           onClose={() => {
             setShowPasswordModal(false);
-            setShowOtpModal(false);
           }}
           email={email}
           token={session?.accessToken || ""}
@@ -1203,7 +1031,6 @@ const SettingsPage = () => {
         />
       )}
 
-      {/* Toast Container */}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </>
   );

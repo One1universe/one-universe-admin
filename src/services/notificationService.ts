@@ -90,6 +90,15 @@ export interface NotificationPreferences {
   preferences: NotificationPreference[];
 }
 
+// Detailed preferences response (for admin/web)
+export interface DetailedNotificationPreferences {
+  [key: string]: {
+    email: boolean;
+    push: boolean;
+    inApp: boolean;
+  };
+}
+
 /**
  * Generic request method with NextAuth session
  */
@@ -139,7 +148,7 @@ async function request(
 }
 
 /**
- * Fetch all notification preferences for current user
+ * Fetch all notification preferences for current user (mobile - aggregated)
  * Returns format: { IN_APP: boolean, EMAIL: boolean, PUSH: boolean }
  */
 export const fetchNotificationPreferences = async (): Promise<any> => {
@@ -147,7 +156,16 @@ export const fetchNotificationPreferences = async (): Promise<any> => {
 };
 
 /**
- * Update notification preference for a specific type and method
+ * Fetch detailed notification preferences (admin/web - granular)
+ * Returns format: { BOOKING_UPDATE: { email: true, push: false, inApp: true }, ... }
+ */
+export const fetchDetailedNotificationPreferences = async (): Promise<DetailedNotificationPreferences> => {
+  return request('/notification-preferences/detailed');
+};
+
+/**
+ * Update notification preference for a specific type and method (OLD - for mobile)
+ * @deprecated Use updateDetailedNotificationPreference instead
  */
 export const updateNotificationPreference = async (
   notificationType: NotificationType,
@@ -161,6 +179,25 @@ export const updateNotificationPreference = async (
       body: JSON.stringify({ enabled }),
     }
   );
+};
+
+/**
+ * Update detailed notification preference (admin/web)
+ * Updates a specific notification type + delivery method combination
+ */
+export const updateDetailedNotificationPreference = async (
+  type: NotificationType,
+  method: 'PUSH' | 'EMAIL' | 'IN_APP',
+  enabled: boolean
+): Promise<void> => {
+  return request('/notification-preferences/detailed', {
+    method: 'PATCH',
+    body: JSON.stringify({
+      type,
+      deliveryMethod: method,
+      enabled,
+    }),
+  });
 };
 
 /**

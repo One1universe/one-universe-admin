@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { supportTicketStore } from "@/store/supportTicketStore";
 import { SupportTicketResponse } from "@/services/supportService";
-import useToastStore from "@/store/useToastStore"; // Your toast store
+import useToastStore from "@/store/useToastStore";
 
 interface TicketDetailViewProps {
   ticket: SupportTicketResponse;
@@ -42,17 +42,16 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
     const success = await respondToTicket(ticket.id, response.trim());
 
     if (success) {
-      setResponse(""); // Clear input
+      setResponse("");
       toast.showToast(
         "success",
         "Response Sent",
         "Your message has been sent to the user via email."
       );
-      // Modal stays open so you can send more responses if needed
-      // If you prefer to close: onClose();
     }
   };
 
+  // FIXED: Safe resolve with delay to prevent render crash
   const handleMarkAsResolved = async () => {
     if (!ticket.id) return;
 
@@ -64,7 +63,11 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
         "Ticket Resolved",
         "This ticket has been marked as resolved."
       );
-      onClose(); // Close modal after resolving
+
+      // Small delay to allow store update + toast to appear before closing
+      setTimeout(() => {
+        onClose();
+      }, 300);
     }
   };
 
@@ -117,8 +120,8 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
     });
   };
 
-  const hasAdminResponse =
-    typeof ticket.adminResponse === "string" && ticket.adminResponse.trim().length > 0;
+  // FIXED: Safe optional chaining to prevent .trim() on undefined/null
+  const hasAdminResponse = !!ticket.adminResponse?.trim();
 
   const handleDownload = async (fileUrl: string) => {
     try {
@@ -170,7 +173,7 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
         <div className="space-y-5">
           <div className="flex items-start gap-4">
             <span className="font-dm-sans font-medium text-base text-[#171417] min-w-[160px]">Email</span>
-            <span className="font-dm-sans font-medium text-base text-[#454345]">{ticket.email}</span>
+            <span className="font-dm-sans font-medium text-base text-[#454345]">{ticket.email || "N/A"}</span>
           </div>
 
           <div className="flex items-start gap-4">
@@ -195,13 +198,13 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
 
           <div className="flex items-start gap-4">
             <span className="font-dm-sans font-medium text-base text-[#171417] min-w-[160px]">Subject</span>
-            <span className="font-dm-sans text-base text-[#454345]">{ticket.subject}</span>
+            <span className="font-dm-sans text-base text-[#454345]">{ticket.subject || "No subject"}</span>
           </div>
 
           <div className="flex items-start gap-4">
             <span className="font-dm-sans font-medium text-base text-[#171417] min-w-[160px]">Description</span>
             <span className="font-dm-sans text-base text-[#454345] leading-[140%] whitespace-pre-wrap">
-              {ticket.description}
+              {ticket.description || "No description"}
             </span>
           </div>
 
@@ -263,11 +266,11 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
         <div className="space-y-2">
           <h3 className="font-dm-sans font-medium text-base text-[#171417]">User Message</h3>
           <div className="bg-[#E8FBF7] rounded-xl px-4 py-3">
-            <p className="font-dm-sans text-base leading-[140%] text-[#171417]">{ticket.description}</p>
+            <p className="font-dm-sans text-base leading-[140%] text-[#171417]">{ticket.description || "No message"}</p>
           </div>
         </div>
 
-        {/* Admin Response */}
+        {/* Admin Response - now safe */}
         {hasAdminResponse && (
           <div className="space-y-2">
             <h3 className="font-dm-sans font-medium text-base text-[#171417]">Admin Response</h3>
@@ -364,16 +367,6 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
           {modalContent}
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes slide-up {
-          from { transform: translateY(100%); }
-          to { transform: translateY(0); }
-        }
-        .md\\:hidden ~ div > div {
-          animation: slide-up 0.35s ease-out;
-        }
-      `}</style>
     </>
   );
 };

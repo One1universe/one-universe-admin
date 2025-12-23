@@ -1,8 +1,8 @@
 // src/store/notificationStore.ts
 import { create } from 'zustand';
 import {
-  fetchNotificationPreferences,
-  updateNotificationPreference,
+  fetchDetailedNotificationPreferences,
+  updateDetailedNotificationPreference,
   NotificationType,
 } from '@/services/notificationService';
 
@@ -19,7 +19,7 @@ interface NotificationState {
   error: string | null;
   updating: Record<string, boolean>;
   updateError: Record<string, string | null>;
-  hasInitialized: boolean; // ← NEW: Track if we've applied defaults once
+  hasInitialized: boolean;
 
   fetchPreferences: () => Promise<void>;
   updatePreference: (
@@ -76,41 +76,43 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   hasInitialized: false,
 
   fetchPreferences: async () => {
-    const { hasInitialized } = get();
-
     set({ loading: true, error: null });
 
     try {
-      const response = await fetchNotificationPreferences();
-      console.log('Fetched global notification defaults:', response);
+      // Fetch detailed preferences (user-specific, per type and method)
+      const detailedPrefs = await fetchDetailedNotificationPreferences();
+      console.log('Fetched detailed notification preferences:', detailedPrefs);
 
-      const defaults = {
-        email: !!response?.EMAIL,
-        push: !!response?.PUSH,
-        inApp: response?.IN_APP !== false,
-      };
+      const preferencesMap: Partial<Record<NotificationType, NotificationPreference>> = {};
 
-      set((state) => {
-        const newPreferences = { ...state.preferences };
+      // Convert API response to store format
+      ALL_NOTIFICATION_TYPES.forEach((type) => {
+        const pref = detailedPrefs[type];
 
-        // Only apply defaults to types that don't already have user settings
-        ALL_NOTIFICATION_TYPES.forEach((type) => {
-          if (!newPreferences[type]) {
-            newPreferences[type] = {
-              type,
-              email: defaults.email,
-              push: defaults.push,
-              inApp: defaults.inApp,
-            };
-          }
-          // If user has already toggled it → preserve their choice
-        });
+        if (pref) {
+          // User has saved preferences for this type
+          preferencesMap[type] = {
+            type,
+            email: pref.email,
+            push: pref.push,
+            inApp: pref.inApp,
+          };
+        } else {
+          // Fallback to defaults if type not in response
+          preferencesMap[type] = {
+            type,
+            email: false,
+            push: false,
+            inApp: true, // Always true for in-app
+          };
+        }
+      });
 
-        return {
-          preferences: newPreferences,
-          loading: false,
-          hasInitialized: true, // Mark as initialized after first load
-        };
+      set({
+        preferences: preferencesMap,
+        loading: false,
+        hasInitialized: true,
+        error: null,
       });
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Failed to load preferences';
@@ -144,8 +146,9 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     });
 
     try {
-      await updateNotificationPreference(type, method, enabled);
-      console.log(`Preference saved: ${type} ${method} = ${enabled}`);
+      // Use the detailed update endpoint
+      await updateDetailedNotificationPreference(type, method, enabled);
+      console.log(`✅ Preference saved: ${type} ${method} = ${enabled}`);
 
       // Success: just clear loading
       set((state) => ({
@@ -155,6 +158,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       return true;
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Failed to update preference';
+      console.error('❌ Update failed:', error);
 
       // Revert optimistic change
       set((state) => {
@@ -174,7 +178,6 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         };
       });
 
-      console.error('Update failed:', error);
       return false;
     }
   },
