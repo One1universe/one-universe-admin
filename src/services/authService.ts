@@ -23,6 +23,52 @@ interface SignOutResponse {
   message?: string;
 }
 
+/**
+ * Extract error message from various response formats
+ * Handles: { message: string }, { message: string[] }, { error: string }, { statusCode, message }
+ */
+function extractErrorMessage(data: any, responseText?: string): string {
+  if (!data && !responseText) {
+    return "An unknown error occurred";
+  }
+
+  // Handle string message: { message: "error text" }
+  if (typeof data?.message === "string" && data.message) {
+    return data.message;
+  }
+
+  // Handle array of messages: { message: ["error 1", "error 2"] }
+  if (Array.isArray(data?.message) && data.message.length > 0) {
+    return data.message[0];
+  }
+
+  // Handle error field: { error: "error text" }
+  if (typeof data?.error === "string" && data.error) {
+    return data.error;
+  }
+
+  // Handle NestJS error response: { statusCode: 400, message: "error text" }
+  if (data?.statusCode && data?.message) {
+    return typeof data.message === "string" 
+      ? data.message 
+      : Array.isArray(data.message) 
+        ? data.message[0] 
+        : "An error occurred";
+  }
+
+  // Handle raw response text (last resort)
+  if (responseText && typeof responseText === "string") {
+    try {
+      const parsed = JSON.parse(responseText);
+      return extractErrorMessage(parsed);
+    } catch {
+      return responseText.substring(0, 200);
+    }
+  }
+
+  return "An unknown error occurred";
+}
+
 const authService = {
   /**
    * Sign in with credentials
@@ -61,7 +107,7 @@ const authService = {
         message: "Login failed",
       };
     } catch (error: any) {
-      console.error("Auth service error:", error);
+      // /console.error("Auth service error:", error);
       return {
         success: false,
         error: true,
@@ -82,7 +128,7 @@ const authService = {
         message: "Logged out successfully",
       };
     } catch (error: any) {
-      console.error("Sign out error:", error);
+      // console.error("Sign out error:", error);
       return {
         success: false,
         message: error.message || "An error occurred during sign out",
@@ -99,7 +145,7 @@ const authService = {
     token: string
   ): Promise<{ message: string }> {
     try {
-      console.log("📧 Requesting OTP for password reset:", { email });
+      // console.log("📧 Requesting OTP for password reset:", { email });
 
       const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
         method: "POST",
@@ -110,30 +156,35 @@ const authService = {
         body: JSON.stringify({ email }),
       });
 
-      const data = await response.json();
+      const responseText = await response.text();
+      let data: any = {};
 
-      if (!response.ok) {
-        const errorMessage =
-          data?.message?.[0] ||
-          data?.message ||
-          data?.error ||
-          `HTTP ${response.status}`;
-
-        console.error("❌ Failed to request OTP:", {
-          status: response.status,
-          message: errorMessage,
-        });
-
-        throw new Error(String(errorMessage));
+      if (responseText) {
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          data = { rawResponse: responseText };
+        }
       }
 
-      console.log("✅ OTP requested successfully:", data);
+      if (!response.ok) {
+        const errorMessage = extractErrorMessage(data, responseText);
+
+        // console.error("❌ Failed to request OTP:", {
+        //   status: response.status,
+        //   message: errorMessage,
+        // });
+
+        throw new Error(errorMessage);
+      }
+
+      // console.log("✅ OTP requested successfully:", data);
       return data;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to request OTP";
 
-      console.error("❌ Error requesting OTP:", errorMessage);
+      // console.error("❌ Error requesting OTP:", errorMessage);
       throw error;
     }
   },
@@ -148,23 +199,13 @@ const authService = {
     token: string
   ): Promise<{ message: string }> {
     try {
-      console.log("🔐 Verifying OTP code:", { email, code, tokenLength: token?.length });
+      // console.log("🔐 Verifying OTP code:", { email, code, tokenLength: token?.length });
 
       const payload = {
         email,
         code,
         purpose: "FORGOT_PASSWORD",
       };
-
-      console.log("📤 OTP Verification Request:", {
-        url: `${API_BASE_URL}/auth/verify`,
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token?.substring(0, 20)}...`,
-        },
-        body: payload,
-      });
 
       const response = await fetch(`${API_BASE_URL}/auth/verify`, {
         method: "POST",
@@ -175,55 +216,37 @@ const authService = {
         body: JSON.stringify(payload),
       });
 
-      console.log("📬 OTP Response status:", response.status);
-      console.log("📬 OTP Response ok:", response.ok);
-      console.log("📬 OTP Response headers:", {
-        contentType: response.headers.get("content-type"),
-        contentLength: response.headers.get("content-length"),
-      });
-
-      // Get response text first
       const responseText = await response.text();
-      console.log("📦 Raw response text length:", responseText.length);
-      console.log("📦 Raw response text:", responseText);
 
       let data: any = {};
       if (responseText) {
         try {
           data = JSON.parse(responseText);
-          console.log("📦 Parsed response data:", data);
         } catch (e) {
-          console.log("⚠️ Could not parse response as JSON");
+          // console.log("⚠️ Could not parse response as JSON");
           data = { rawResponse: responseText };
         }
       }
 
       if (!response.ok) {
-        console.error("❌ Response NOT ok!");
-        const errorMessage =
-          data?.message?.[0] ||
-          data?.message ||
-          data?.error ||
-          responseText ||
-          `HTTP ${response.status}`;
+        const errorMessage = extractErrorMessage(data, responseText);
 
-        console.error("❌ Failed to verify OTP:", {
-          status: response.status,
-          statusText: response.statusText,
-          message: errorMessage,
-          responseData: data,
-        });
+        // console.error("❌ Failed to verify OTP:", {
+        //   status: response.status,
+        //   statusText: response.statusText,
+        //   message: errorMessage,
+        // });
 
-        throw new Error(String(errorMessage));
+        throw new Error(errorMessage);
       }
 
-      console.log("✅ OTP verified successfully:", data);
+      // console.log("✅ OTP verified successfully:", data);
       return data;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to verify OTP";
 
-      console.error("❌ Error verifying OTP:", errorMessage);
+      // console.error("❌ Error verifying OTP:", errorMessage);
       throw error;
     }
   },
@@ -231,6 +254,11 @@ const authService = {
   /**
    * Change password with current password
    * POST /auth/change-password
+   * 
+   * Backend throws errors for:
+   * - "Current password is incorrect" (if current password doesn't match)
+   * - "Passwords do not match" (if newPassword !== confirmPassword)
+   * - "New password cannot be the same as your current password" (if same as old)
    */
   async changePassword(
     currentPassword: string,
@@ -239,7 +267,7 @@ const authService = {
     token: string
   ): Promise<{ message: string }> {
     try {
-      console.log("🔐 Changing password");
+      // console.log("🔐 Changing password...");
 
       const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
         method: "POST",
@@ -254,30 +282,42 @@ const authService = {
         }),
       });
 
-      const data = await response.json();
+      // Get response text first to handle both JSON and plain text errors
+      const responseText = await response.text();
+      // console.log("📬 Response status:", response.status);
+      // console.log("📬 Response text:", responseText);
 
-      if (!response.ok) {
-        const errorMessage =
-          data?.message?.[0] ||
-          data?.message ||
-          data?.error ||
-          `HTTP ${response.status}`;
-
-        console.error("❌ Failed to change password:", {
-          status: response.status,
-          message: errorMessage,
-        });
-
-        throw new Error(String(errorMessage));
+      let data: any = {};
+      if (responseText) {
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          // console.log("⚠️ Could not parse response as JSON");
+          data = { rawResponse: responseText };
+        }
       }
 
-      console.log("✅ Password changed successfully:", data);
+      if (!response.ok) {
+        // Extract the user-friendly error message using helper
+        const errorMessage = extractErrorMessage(data, responseText);
+
+        // console.error("❌ Failed to change password:", {
+        //   status: response.status,
+        //   statusText: response.statusText,
+        //   message: errorMessage,
+        //   fullData: data,
+        // });
+
+        throw new Error(errorMessage);
+      }
+
+      // console.log("✅ Password changed successfully");
       return data;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to change password";
 
-      console.error("❌ Error changing password:", errorMessage);
+      // console.error("❌ Error changing password:", errorMessage);
       throw error;
     }
   },

@@ -51,7 +51,7 @@ class SupportService {
     const session = await getSession();
     
     if (!session?.accessToken) {
-      console.error("❌ No access token found in session");
+      // console.error("❌ No access token found in session");
       throw new Error("Unauthorized - Please log in again");
     }
 
@@ -67,12 +67,12 @@ class SupportService {
 
       // Handle 401 - Token may have expired
       if (response.status === 401) {
-        console.error("❌ Unauthorized: Token expired or invalid");
+        // console.error("❌ Unauthorized: Token expired or invalid");
         throw new Error("Unauthorized - Session expired");
       }
 
       if (response.status === 403) {
-        console.error("❌ Forbidden: Access denied");
+        // console.error("❌ Forbidden: Access denied");
         throw new Error("Forbidden - Access denied");
       }
 
@@ -84,7 +84,7 @@ class SupportService {
 
       return data;
     } catch (error) {
-      console.error(`❌ Request failed for ${endpoint}:`, error);
+      // console.error(`❌ Request failed for ${endpoint}:`, error);
       throw error;
     }
   }

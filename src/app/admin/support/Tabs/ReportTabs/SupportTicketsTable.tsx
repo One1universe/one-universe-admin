@@ -17,7 +17,6 @@ const SupportTicketsTable = ({ searchQuery, selectedStatuses }: SupportTicketsTa
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
 
-  // Get state from store
   const {
     tickets,
     ticketsLoading,
@@ -30,7 +29,11 @@ const SupportTicketsTable = ({ searchQuery, selectedStatuses }: SupportTicketsTa
     setSelectedTicket,
   } = supportTicketStore();
 
-  // ✅ FIXED: Map UI status names to API status values
+  // === FIXED: Fetch tickets on mount only (no dependency array issue) ===
+  useEffect(() => {
+    fetchTickets(1, 10); // Load first page on component mount
+  }, []); // Empty array = runs only once on mount
+
   const mapStatusToAPI = (statuses: string[]): SupportTicketStatus[] => {
     return statuses
       .map(status => {
@@ -42,36 +45,32 @@ const SupportTicketsTable = ({ searchQuery, selectedStatuses }: SupportTicketsTa
       .filter((s): s is SupportTicketStatus => s !== null);
   };
 
-  // ✅ FIXED: Fetch ALL tickets without status filter, filter client-side for multiple statuses
-  useEffect(() => {
-    console.log("📋 Fetching all tickets (filter client-side):", { 
-      selectedStatuses, 
-      page: 1 
-    });
-    
-    // Always fetch all tickets - filter by status will happen client-side
-    // This allows filtering by multiple statuses simultaneously
-    fetchTickets(1, 10, undefined);
-  }, []);
+  // SAFE STATUS FORMATTING
+  const formatStatus = (status: string | undefined | null): string => {
+    if (!status) return "Unknown";
+    return status.replace("_", " ");
+  };
 
-  // ✅ FIXED: Client-side filtering for multiple statuses AND search
+  const getStatusStyles = (status: string | undefined) => {
+    switch (status) {
+      case "RESOLVED": return "bg-[#E0F5E6] text-[#1FC16B]";
+      case "IN_PROGRESS": return "bg-[#D3E1FF] text-[#007BFF]";
+      case "NEW": return "bg-[#FFF2B9] text-[#9D7F04]";
+      default: return "bg-gray-100 text-gray-600";
+    }
+  };
+
   const filteredTickets = useMemo(() => {
     let result = tickets;
 
-    // Filter by selected statuses (client-side)
     const apiStatuses = mapStatusToAPI(selectedStatuses);
     
-    // If statuses are selected, filter by them; otherwise show all
     if (apiStatuses.length > 0) {
       result = result.filter(ticket => 
         apiStatuses.includes(ticket.status as SupportTicketStatus)
       );
-      console.log(`🔍 Filtered by status [${apiStatuses.join(", ")}]: ${result.length} tickets`);
-    } else {
-      console.log(`🔍 No status filter applied: showing all ${result.length} tickets`);
     }
 
-    // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(ticket => 
@@ -79,7 +78,6 @@ const SupportTicketsTable = ({ searchQuery, selectedStatuses }: SupportTicketsTa
         ticket.email?.toLowerCase().includes(query) ||
         ticket.subject?.toLowerCase().includes(query)
       );
-      console.log(`🔍 Filtered by search "${searchQuery}": ${result.length} tickets`);
     }
 
     return result;
@@ -111,11 +109,14 @@ const SupportTicketsTable = ({ searchQuery, selectedStatuses }: SupportTicketsTa
   };
 
   const openTicketDetail = (ticket: any) => {
-    setSelectedTicket(ticket);
+    // Find the ORIGINAL ticket from the store to pass full data to TicketDetailView
+    const originalTicket = tickets.find(t => t.id === ticket.id);
+    if (originalTicket) {
+      setSelectedTicket(originalTicket);
+    }
     setOpenMenuId(null);
   };
 
-  // Map API response to UI format for ActionMenu compatibility
   const mapTicketForUI = (ticket: any) => ({
     ...ticket,
     username: ticket.email,
@@ -131,15 +132,6 @@ const SupportTicketsTable = ({ searchQuery, selectedStatuses }: SupportTicketsTa
       : undefined
   });
 
-  const getStatusStyles = (status: string) => {
-    switch (status) {
-      case "RESOLVED": return "bg-[#E0F5E6] text-[#1FC16B]";
-      case "IN_PROGRESS": return "bg-[#D3E1FF] text-[#007BFF]";
-      case "NEW": return "bg-[#FFF2B9] text-[#9D7F04]";
-      default: return "";
-    }
-  };
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", { 
@@ -150,9 +142,10 @@ const SupportTicketsTable = ({ searchQuery, selectedStatuses }: SupportTicketsTa
   };
 
   const openTicket = openMenuId ? tickets.find(t => t.id === openMenuId) : null;
+  // Only use mappedOpenTicket for the ActionMenu display, not for passing to TicketDetailView
   const mappedOpenTicket = openTicket ? mapTicketForUI(openTicket) : null;
 
-  // Loading state
+  // Loading state (only show spinner on initial load)
   if (ticketsLoading && tickets.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -167,7 +160,7 @@ const SupportTicketsTable = ({ searchQuery, selectedStatuses }: SupportTicketsTa
       <div className="text-center py-12">
         <p className="text-red-600 font-dm-sans text-base">{ticketsError}</p>
         <button
-          onClick={() => fetchTickets(1, 10, undefined)}
+          onClick={() => fetchTickets(1, 10)}
           className="mt-4 px-6 py-2 bg-[#154751] text-white rounded-lg hover:opacity-90"
         >
           Retry
@@ -178,7 +171,6 @@ const SupportTicketsTable = ({ searchQuery, selectedStatuses }: SupportTicketsTa
 
   return (
     <>
-      {/* === CONTENT WHEN THERE ARE TICKETS === */}
       {filteredTickets.length > 0 ? (
         <>
           {/* Desktop Table */}
@@ -203,7 +195,7 @@ const SupportTicketsTable = ({ searchQuery, selectedStatuses }: SupportTicketsTa
                     <td className="py-[18px] px-[25px]">
                       <div className={`inline-flex items-center gap-[6px] px-2 py-1 rounded-lg ${getStatusStyles(ticket.status)}`}>
                         <StatusIcon status={ticket.status === "RESOLVED" ? "Resolved" : ticket.status === "IN_PROGRESS" ? "In Progress" : "New"} />
-                        <span className="font-dm-sans text-sm">{ticket.status.replace("_", " ")}</span>
+                        <span className="font-dm-sans text-sm">{formatStatus(ticket.status)}</span>
                       </div>
                     </td>
                     <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">{formatDate(ticket.createdAt)}</td>
@@ -251,7 +243,7 @@ const SupportTicketsTable = ({ searchQuery, selectedStatuses }: SupportTicketsTa
                 <p className="font-dm-sans text-sm text-[#303237] mb-3">{ticket.subject}</p>
                 <div className={`inline-flex items-center gap-[6px] px-2 py-1 rounded-lg ${getStatusStyles(ticket.status)}`}>
                   <StatusIcon status={ticket.status === "RESOLVED" ? "Resolved" : ticket.status === "IN_PROGRESS" ? "In Progress" : "New"} />
-                  <span className="font-dm-sans text-sm">{ticket.status.replace("_", " ")}</span>
+                  <span className="font-dm-sans text-sm">{formatStatus(ticket.status)}</span>
                 </div>
               </div>
             ))}
@@ -261,7 +253,7 @@ const SupportTicketsTable = ({ searchQuery, selectedStatuses }: SupportTicketsTa
           {totalPages > 1 && (
             <div className="flex justify-center items-center gap-2 mt-6">
               <button
-                onClick={() => fetchTickets(currentPage - 1, 10, undefined)}
+                onClick={() => fetchTickets(currentPage - 1, 10)}
                 disabled={currentPage === 1 || ticketsLoading}
                 className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
               >
@@ -271,7 +263,7 @@ const SupportTicketsTable = ({ searchQuery, selectedStatuses }: SupportTicketsTa
                 Page {currentPage} of {totalPages}
               </span>
               <button
-                onClick={() => fetchTickets(currentPage + 1, 10, undefined)}
+                onClick={() => fetchTickets(currentPage + 1, 10)}
                 disabled={currentPage === totalPages || ticketsLoading}
                 className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
               >
@@ -281,7 +273,6 @@ const SupportTicketsTable = ({ searchQuery, selectedStatuses }: SupportTicketsTa
           )}
         </>
       ) : (
-        /* === EMPTY STATE === */
         <EmptyState type="support" />
       )}
 

@@ -216,7 +216,7 @@ const OTPModal: React.FC<{
 };
 
 // ============================================================================
-// PASSWORD CHANGE MODAL - Errors only via toast
+// PASSWORD CHANGE MODAL - IMPROVED WITH PROPER ERROR HANDLING
 // ============================================================================
 const PasswordChangeModal: React.FC<{
   onClose: () => void;
@@ -228,11 +228,13 @@ const PasswordChangeModal: React.FC<{
   const [newPass, setNewPass] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  // Password strength validation
   const hasMin = newPass.length >= 8;
   const hasUpper = /[A-Z]/.test(newPass);
   const hasLower = /[a-z]/.test(newPass);
@@ -249,6 +251,40 @@ const PasswordChangeModal: React.FC<{
     hasSpecial &&
     match;
 
+  // Clear field error when user starts typing
+  const handleCurrentPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCurrentPassword(e.target.value);
+    if (fieldErrors.currentPassword) {
+      setFieldErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.currentPassword;
+        return newErrors;
+      });
+    }
+  };
+
+  const handleNewPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewPass(e.target.value);
+    if (fieldErrors.newPassword) {
+      setFieldErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.newPassword;
+        return newErrors;
+      });
+    }
+  };
+
+  const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setConfirm(e.target.value);
+    if (fieldErrors.confirmPassword) {
+      setFieldErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.confirmPassword;
+        return newErrors;
+      });
+    }
+  };
+
   const handleChangePassword = async () => {
     if (!canSubmit) {
       showToast("Please complete all password requirements", "error");
@@ -256,24 +292,61 @@ const PasswordChangeModal: React.FC<{
     }
 
     setLoading(true);
+    setFieldErrors({});
 
     try {
-      await authService.changePassword(currentPassword, newPass, confirm, token);
-      showToast("Password changed successfully! ✓", "success");
+      // console.log("📤 Submitting password change...");
+
+      const response = await authService.changePassword(
+        currentPassword,
+        newPass,
+        confirm,
+        token
+      );
+
+      // console.log("✅ Password changed successfully");
+
+      // Show success message
+      showToast(
+        response.message || "Password changed successfully! ✓",
+        "success"
+      );
+
+      // Reset form and close modal
+      setCurrentPassword("");
+      setNewPass("");
+      setConfirm("");
       setTimeout(() => onClose(), 500);
     } catch (err) {
+      // ⭐ Extract the specific error message from backend
       const errorMessage =
         err instanceof Error ? err.message : "Failed to change password";
 
-      const friendlyMessage = errorMessage
-        .toLowerCase()
-        .includes("current password")
-        ? "The current password you entered is incorrect."
-        : errorMessage.toLowerCase().includes("match")
-        ? "New passwords do not match."
-        : "Failed to update password. Please try again.";
+      // console.error("❌ Error:", errorMessage);
 
-      showToast(friendlyMessage, "error");
+      // Show error in toast immediately
+      showToast(errorMessage, "error");
+
+      // ⭐ Map specific errors to fields for better UX
+      if (
+        errorMessage.toLowerCase().includes("current") ||
+        errorMessage.toLowerCase().includes("incorrect")
+      ) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          currentPassword: errorMessage,
+        }));
+      } else if (errorMessage.toLowerCase().includes("match")) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          confirmPassword: errorMessage,
+        }));
+      } else if (errorMessage.toLowerCase().includes("same")) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          newPassword: errorMessage,
+        }));
+      }
     } finally {
       setLoading(false);
     }
@@ -294,84 +367,125 @@ const PasswordChangeModal: React.FC<{
         </div>
 
         <div className="space-y-4">
+          {/* Current Password */}
           <div className="relative">
-            <label className="block font-dm-sans font-medium mb-2">
+            <label className="block font-dm-sans font-medium mb-2 text-[#171417]">
               Current Password
             </label>
             <input
               type={showCurrent ? "text" : "password"}
               value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full h-12 px-4 pr-12 rounded-xl border border-[#B2B2B4] focus:border-[#154751] outline-none disabled:opacity-50"
+              onChange={handleCurrentPasswordChange}
+              placeholder="Enter your current password"
+              className={`w-full h-12 px-4 pr-12 rounded-xl border focus:outline-none disabled:opacity-50 transition-colors ${
+                fieldErrors.currentPassword
+                  ? "border-red-500 focus:border-red-500"
+                  : "border-[#B2B2B4] focus:border-[#154751]"
+              }`}
               disabled={loading}
             />
             <button
               type="button"
               onClick={() => setShowCurrent(!showCurrent)}
-              className="absolute right-4 top-10"
+              className="absolute right-4 top-10 text-gray-600"
             >
               {showCurrent ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
+            {fieldErrors.currentPassword && (
+              <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <AlertCircle size={14} />
+                {fieldErrors.currentPassword}
+              </p>
+            )}
           </div>
 
+          {/* New Password */}
           <div className="relative">
-            <label className="block font-dm-sans font-medium mb-2">
+            <label className="block font-dm-sans font-medium mb-2 text-[#171417]">
               New Password
             </label>
             <input
               type={showNew ? "text" : "password"}
               value={newPass}
-              onChange={(e) => setNewPass(e.target.value)}
-              className="w-full h-12 px-4 pr-12 rounded-xl border border-[#B2B2B4] focus:border-[#154751] outline-none disabled:opacity-50"
+              onChange={handleNewPasswordChange}
+              placeholder="Enter new password"
+              className={`w-full h-12 px-4 pr-12 rounded-xl border focus:outline-none disabled:opacity-50 transition-colors ${
+                fieldErrors.newPassword
+                  ? "border-red-500 focus:border-red-500"
+                  : "border-[#B2B2B4] focus:border-[#154751]"
+              }`}
               disabled={loading}
             />
             <button
               type="button"
               onClick={() => setShowNew(!showNew)}
-              className="absolute right-4 top-10"
+              className="absolute right-4 top-10 text-gray-600"
             >
               {showNew ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
+            {fieldErrors.newPassword && (
+              <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <AlertCircle size={14} />
+                {fieldErrors.newPassword}
+              </p>
+            )}
           </div>
 
+          {/* Confirm Password */}
           <div className="relative">
-            <label className="block font-dm-sans font-medium mb-2">
+            <label className="block font-dm-sans font-medium mb-2 text-[#171417]">
               Confirm New Password
             </label>
             <input
               type={showConfirm ? "text" : "password"}
               value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              className="w-full h-12 px-4 pr-12 rounded-xl border border-[#B2B2B4] focus:border-[#154751] outline-none disabled:opacity-50"
+              onChange={handleConfirmPasswordChange}
+              placeholder="Confirm new password"
+              className={`w-full h-12 px-4 pr-12 rounded-xl border focus:outline-none disabled:opacity-50 transition-colors ${
+                fieldErrors.confirmPassword
+                  ? "border-red-500 focus:border-red-500"
+                  : "border-[#B2B2B4] focus:border-[#154751]"
+              }`}
               disabled={loading}
             />
             <button
               type="button"
               onClick={() => setShowConfirm(!showConfirm)}
-              className="absolute right-4 top-10"
+              className="absolute right-4 top-10 text-gray-600"
             >
               {showConfirm ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
+            {fieldErrors.confirmPassword && (
+              <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <AlertCircle size={14} />
+                {fieldErrors.confirmPassword}
+              </p>
+            )}
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          {/* Password Strength Indicators */}
+          <div className="flex flex-wrap gap-2 mt-4">
             {[
               { valid: hasMin, text: "8+ characters" },
               { valid: hasUpper, text: "Uppercase" },
               { valid: hasLower, text: "Lowercase" },
               { valid: hasNumber, text: "Number" },
-              { valid: hasSpecial, text: "Special char" },
+              { valid: hasSpecial, text: "Special char (!@#$%^&*)" },
               { valid: match, text: "Passwords match" },
             ].map((item) => (
               <div
                 key={item.text}
-                className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs ${
+                className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                   item.valid
-                    ? "bg-[#154751] text-white"
-                    : "bg-gray-200 text-gray-500"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-gray-100 text-gray-500"
                 }`}
               >
-                <Check size={14} />
+                {item.valid ? (
+                  <Check size={14} />
+                ) : (
+                  <X size={14} />
+                )}
                 {item.text}
               </div>
             ))}
@@ -381,7 +495,7 @@ const PasswordChangeModal: React.FC<{
         <button
           onClick={handleChangePassword}
           disabled={!canSubmit || loading}
-          className="w-full h-12 rounded-2xl text-white font-dm-sans font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full h-12 rounded-2xl text-white font-dm-sans font-medium disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
           style={{
             background:
               canSubmit && !loading

@@ -24,7 +24,17 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
 
   const toast = useToastStore();
 
-  // Focus textarea when modal opens
+  // ⚠️ SAFETY CHECK: Close modal if ticket data is missing or invalid
+  useEffect(() => {
+    if (!ticket || !ticket.id || !ticket.ticketId) {
+      console.warn("⚠️ TicketDetailView received invalid ticket data, closing modal");
+      const timer = setTimeout(() => {
+        onClose();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [ticket, onClose]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       textareaRef.current?.focus();
@@ -51,7 +61,6 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
     }
   };
 
-  // FIXED: Safe resolve with delay to prevent render crash
   const handleMarkAsResolved = async () => {
     if (!ticket.id) return;
 
@@ -63,15 +72,19 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
         "Ticket Resolved",
         "This ticket has been marked as resolved."
       );
-
-      // Small delay to allow store update + toast to appear before closing
       setTimeout(() => {
         onClose();
       }, 300);
     }
   };
 
-  const getStatusStyles = (status: string) => {
+  // SAFE STATUS FORMATTING
+  const formatStatus = (status: string | undefined | null): string => {
+    if (!status) return "Unknown";
+    return status.replace("_", " ");
+  };
+
+  const getStatusStyles = (status: string | undefined) => {
     switch (status) {
       case "RESOLVED":
         return "bg-[#E0F5E6] text-[#1FC16B] border border-[#1FC16B]";
@@ -84,7 +97,7 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
     }
   };
 
-  const StatusIcon = ({ status }: { status: string }) => {
+  const StatusIcon = ({ status }: { status: string | undefined }) => {
     if (status === "RESOLVED") {
       return (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -120,7 +133,6 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
     });
   };
 
-  // FIXED: Safe optional chaining to prevent .trim() on undefined/null
   const hasAdminResponse = !!ticket.adminResponse?.trim();
 
   const handleDownload = async (fileUrl: string) => {
@@ -142,7 +154,7 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error(err);
+      // console.error(err);
       toast.showToast(
         "error",
         "Download Failed",
@@ -180,7 +192,7 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
             <span className="font-dm-sans font-medium text-base text-[#171417] min-w-[160px]">Status</span>
             <div className={`inline-flex items-center gap-[6px] px-2 py-1 rounded-lg ${getStatusStyles(ticket.status)}`}>
               <StatusIcon status={ticket.status} />
-              <span className="font-dm-sans text-sm leading-[140%]">{ticket.status.replace("_", " ")}</span>
+              <span className="font-dm-sans text-sm leading-[140%]">{formatStatus(ticket.status)}</span>
             </div>
           </div>
 
@@ -270,7 +282,7 @@ const TicketDetailView = ({ ticket, onClose }: TicketDetailViewProps) => {
           </div>
         </div>
 
-        {/* Admin Response - now safe */}
+        {/* Admin Response */}
         {hasAdminResponse && (
           <div className="space-y-2">
             <h3 className="font-dm-sans font-medium text-base text-[#171417]">Admin Response</h3>

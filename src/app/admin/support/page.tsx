@@ -102,7 +102,7 @@ const AdminSupportPage = () => {
 
     // Set new timer for actual filtering
     debounceTimer.current = setTimeout(() => {
-      console.log("🔍 Search query updated:", query);
+      // console.log("🔍 Search query updated:", query);
       setSearchQuery(query);
     }, 300); // 300ms debounce
   }, []);
@@ -114,14 +114,14 @@ const AdminSupportPage = () => {
         ? prev.filter((s) => s !== status)
         : [...prev, status];
       
-      console.log("✅ Status filter updated:", updated);
+      // console.log("✅ Status filter updated:", updated);
       return updated;
     });
   };
 
   // ✅ FIXED: Log when tab changes
   const handleTabChange = (tab: string) => {
-    console.log("📋 Tab changed to:", tab);
+    // console.log("📋 Tab changed to:", tab);
     setActiveTab(tab);
   };
 

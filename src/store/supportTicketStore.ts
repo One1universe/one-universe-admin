@@ -6,6 +6,7 @@ import {
   SupportTicketStatus,
   SupportTicketsApiResponse 
 } from "@/services/supportService";
+import useToastStore from "@/store/useToastStore";
 
 // === Types ===
 export interface SupportTicketFilters {
@@ -30,7 +31,6 @@ function isHttpError(response: unknown): response is HttpError {
 
 // === Store ===
 interface SupportTicketState {
-  // All tickets data
   tickets: SupportTicketResponse[];
   ticketsLoading: boolean;
   ticketsError: string | null;
@@ -39,15 +39,12 @@ interface SupportTicketState {
   totalPages: number;
   limit: number;
 
-  // Selected ticket for detail view
   selectedTicket: SupportTicketResponse | null;
   selectedTicketLoading: boolean;
   selectedTicketError: string | null;
 
-  // Filters
   filters: SupportTicketFilters;
   
-  // Response submission state
   respondingToTicket: boolean;
   respondError: string | null;
 
@@ -149,8 +146,10 @@ export const supportTicketStore = create<SupportTicketState>((set, get) => ({
 
   clearRespondError: () => set({ respondError: null }),
 
+  // RESPOND TO TICKET
   respondToTicket: async (ticketId: string, adminResponse: string) => {
     set({ respondingToTicket: true, respondError: null });
+    const toast = useToastStore.getState();
 
     try {
       const { tickets } = get();
@@ -171,7 +170,6 @@ export const supportTicketStore = create<SupportTicketState>((set, get) => ({
 
       const updatedTicket = response as SupportTicketResponse;
 
-      // Update both list and selected ticket
       set((state) => ({
         tickets: state.tickets.map((t) =>
           t.id === updatedTicket.id ? updatedTicket : t
@@ -182,23 +180,34 @@ export const supportTicketStore = create<SupportTicketState>((set, get) => ({
         respondError: null,
       }));
 
-      // Optional: Refetch full list to ensure sync (uncomment if needed)
-      // await get().fetchTickets(get().currentPage, get().limit);
+      toast.showToast(
+        "success",
+        "Response Sent",
+        "Your message has been sent to the user via email."
+      );
+
+      // Refetch full list to ensure table reflects latest response
+      await get().fetchTickets(get().currentPage, get().limit);
 
       return true;
     } catch (err: any) {
+      const errorMessage = err.message || "Failed to send response. Please try again.";
+
       console.error("Failed to respond to ticket:", err);
-      set({
-        respondError: err.message || "Failed to send response. Please try again.",
-      });
+      set({ respondError: errorMessage });
+
+      toast.showToast("error", "Failed to Send", errorMessage);
+
       return false;
     } finally {
       set({ respondingToTicket: false });
     }
   },
 
+  // MARK AS RESOLVED
   markAsResolved: async (ticketId: string) => {
     set({ respondingToTicket: true, respondError: null });
+    const toast = useToastStore.getState();
 
     try {
       const { tickets } = get();
@@ -226,20 +235,34 @@ export const supportTicketStore = create<SupportTicketState>((set, get) => ({
         respondError: null,
       }));
 
+      toast.showToast(
+        "success",
+        "Ticket Resolved",
+        "This ticket has been successfully marked as resolved."
+      );
+
+      // Refetch to update table immediately with new status
+      await get().fetchTickets(get().currentPage, get().limit);
+
       return true;
     } catch (err: any) {
+      const errorMessage = err.message || "Failed to mark as resolved. Please try again.";
+
       console.error("Failed to mark ticket as resolved:", err);
-      set({
-        respondError: err.message || "Failed to mark as resolved. Please try again.",
-      });
+      set({ respondError: errorMessage });
+
+      toast.showToast("error", "Action Failed", errorMessage);
+
       return false;
     } finally {
       set({ respondingToTicket: false });
     }
   },
 
+  // UPDATE TICKET STATUS
   updateTicketStatus: async (ticketId: string, status: SupportTicketStatus) => {
     set({ respondingToTicket: true, respondError: null });
+    const toast = useToastStore.getState();
 
     try {
       const { tickets } = get();
@@ -267,34 +290,39 @@ export const supportTicketStore = create<SupportTicketState>((set, get) => ({
         respondError: null,
       }));
 
+      toast.showToast("success", "Status Updated", `Ticket status changed to ${status.replace("_", " ")}`);
+
+      await get().fetchTickets(get().currentPage, get().limit);
+
       return true;
     } catch (err: any) {
+      const errorMessage = err.message || "Failed to update status";
+
       console.error("Failed to update ticket status:", err);
-      set({
-        respondError: err.message || "Failed to update status",
-      });
+      set({ respondError: errorMessage });
+
+      toast.showToast("error", "Update Failed", errorMessage);
+
       return false;
     } finally {
       set({ respondingToTicket: false });
     }
   },
 
+  // DELETE TICKET
   deleteTicket: async (ticketId: string) => {
     set({ respondingToTicket: true, respondError: null });
+    const toast = useToastStore.getState();
 
     try {
       const { tickets } = get();
       const ticket = tickets.find(t => t.id === ticketId);
       
       if (!ticket) {
-        throw new Error("Ticket not found in local list");
+        throw new Error("Ticket not found");
       }
 
-      const deleteResult = await supportService.deleteTicket(ticket.ticketId);
-
-      if (isHttpError(deleteResult)) {
-        throw new Error(deleteResult.message);
-      }
+      await supportService.deleteTicket(ticket.ticketId);
 
       set((state) => ({
         tickets: state.tickets.filter((t) => t.id !== ticketId),
@@ -302,12 +330,19 @@ export const supportTicketStore = create<SupportTicketState>((set, get) => ({
         respondError: null,
       }));
 
+      toast.showToast("success", "Ticket Deleted", "The ticket has been permanently deleted.");
+
+      await get().fetchTickets(get().currentPage, get().limit);
+
       return true;
     } catch (err: any) {
+      const errorMessage = err.message || "Failed to delete ticket";
+
       console.error("Failed to delete ticket:", err);
-      set({
-        respondError: err.message || "Failed to delete ticket",
-      });
+      set({ respondError: errorMessage });
+
+      toast.showToast("error", "Delete Failed", errorMessage);
+
       return false;
     } finally {
       set({ respondingToTicket: false });

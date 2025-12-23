@@ -44,21 +44,21 @@ const ConfirmModal = ({ type, isOpen, onConfirm, onCancel }: ConfirmModalProps) 
 
   // Explicit handlers that log and call callbacks
   const handleConfirmClick = (e: React.MouseEvent) => {
-    console.log("🎯 Confirm button clicked in modal");
+    // console.log("🎯 Confirm button clicked in modal");
     e.preventDefault();
     e.stopPropagation();
     onConfirm();
   };
 
   const handleCancelClick = (e: React.MouseEvent) => {
-    console.log("❌ Cancel button clicked in modal");
+    // console.log("❌ Cancel button clicked in modal");
     e.preventDefault();
     e.stopPropagation();
     onCancel();
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
-    console.log("🖱️ Backdrop clicked");
+    // console.log("🖱️ Backdrop clicked");
     e.preventDefault();
     e.stopPropagation();
     onCancel();
