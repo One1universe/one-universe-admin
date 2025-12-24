@@ -7,7 +7,7 @@ import { useNotificationsStore } from "@/store/Notificationsstore";
 import { notificationsService } from "@/services/Notificationsservice";
 
 interface NotificationsPanelProps {
-  onClose?: () => void; // Optional close handler
+  onClose?: () => void;
 }
 
 const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onClose }) => {
@@ -30,14 +30,80 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onClose }) => {
 
   const getStatusStyles = (type: string) => {
     switch (type) {
+      // Booking Related - Blue
+      case "BOOKING_UPDATE":
+      case "BOOKING_CREATED":
+      case "BOOKING_ACCEPTED_BUYER":
+      case "BOOKING_ACCEPTED_SELLER":
+        return { badge: "bg-[#D3E1FF]", badgeText: "text-[#007BFF]", label: "Booking" };
+
+      case "BOOKING_DECLINE_BUYER":
+      case "BOOKING_DECLINE_SELLER":
+        return { badge: "bg-[#FFE5E5]", badgeText: "text-[#D84040]", label: "Declined" };
+
+      // Job Related - Green
+      case "JOB_STARTED":
+      case "JOB_COMPLETED":
+      case "JOB_CONFIRMED":
+        return { badge: "bg-[#D3F5E3]", badgeText: "text-[#1FC16B]", label: "Job Update" };
+
+      // Payment Related - Purple
+      case "ADMIN_DISBURSEMENT":
+      case "PAYMENT_REQUEST":
+        return { badge: "bg-[#E5D3FF]", badgeText: "text-[#8B5CF6]", label: "Payment" };
+
+      // Dispute & Support - Yellow/Orange
       case "DISPUTE_NOTIFICATION":
         return { badge: "bg-[#FFF2B9]", badgeText: "text-[#9D7F04]", label: "Dispute" };
-      case "PAYMENT_NOTIFICATION":
-        return { badge: "bg-[#D3E1FF]", badgeText: "text-[#007BFF]", label: "Payment" };
-      case "SYSTEM_NOTIFICATION":
-        return { badge: "bg-[#E5E5E5]", badgeText: "text-[#242424]", label: "System" };
-      case "SUCCESS_NOTIFICATION":
-        return { badge: "bg-[#D3F5E3]", badgeText: "text-[#1FC16B]", label: "Success" };
+      
+      case "GET_HELP_SUPPORT":
+        return { badge: "bg-[#FFE5F0]", badgeText: "text-[#D84040]", label: "Support" };
+
+      case "PANIC_ALERT":
+        return { badge: "bg-[#FFD6D6]", badgeText: "text-[#C92A2A]", label: "Alert" };
+
+      // Account & Security - Gray
+      case "ACCOUNT_UPDATE":
+      case "ACCOUNT_DELETION":
+      case "PASSWORD_CHANGE":
+      case "EMAIL_CHANGE":
+      case "SECURITY":
+      case "VERIFICATION":
+        return { badge: "bg-[#E5E5E5]", badgeText: "text-[#242424]", label: "Account" };
+
+      // Quotes & Service - Teal
+      case "SERVICE_QUOTE":
+      case "QUOTE_UPDATED":
+      case "SERVICE_REQUEST":
+        return { badge: "bg-[#D3F5F5]", badgeText: "text-[#0D9488]", label: "Quote" };
+
+      // Acceptance/Decline - Green/Red
+      case "BUYER_ACCEPT":
+      case "SELLER_ACCEPT":
+        return { badge: "bg-[#D3F5E3]", badgeText: "text-[#1FC16B]", label: "Accepted" };
+
+      case "BUYER_DECLINE":
+      case "SELLER_DECLINE":
+        return { badge: "bg-[#FFE5E5]", badgeText: "text-[#D84040]", label: "Declined" };
+
+      // Renegotiation - Orange
+      case "RENEGOTIATION":
+        return { badge: "bg-[#FFF4E5]", badgeText: "text-[#F97316]", label: "Renegotiation" };
+
+      // Messages - Blue
+      case "NEW_MESSAGE":
+        return { badge: "bg-[#E0F2FF]", badgeText: "text-[#0284C7]", label: "Message" };
+
+      // Warning - Red
+      case "WARNING":
+        return { badge: "bg-[#FFEAEA]", badgeText: "text-[#DC2626]", label: "Warning" };
+
+      // System & General - Gray
+      case "SYSTEM":
+      case "GENERAL":
+      case "SUBSCRIBE":
+        return { badge: "bg-[#F3F4F6]", badgeText: "text-[#4B5563]", label: "General" };
+
       default:
         return { badge: "bg-[#E5E5E5]", badgeText: "text-[#242424]", label: "Info" };
     }
@@ -88,15 +154,31 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onClose }) => {
       await deleteNotification(notification.id);
     };
 
+    // Determine if notification should have "View Details" button and where to redirect
+    const getRedirectUrl = () => {
+      const ticketId = notification.data?.ticketId;
+      if (!ticketId) return null;
+
+      switch (notification.type) {
+        case "DISPUTE_NOTIFICATION":
+          return `/admin/dispute-management?disputeId=${ticketId}`;
+        
+        case "GET_HELP_SUPPORT":
+          return `/admin/support-feedback?ticketId=${ticketId}`;
+        
+        // Add other types that need redirection here
+        // For now, only dispute and support redirect
+        default:
+          return null;
+      }
+    };
+
+    const redirectUrl = getRedirectUrl();
+
     const handleViewDetails = (e: React.MouseEvent) => {
       e.stopPropagation();
-
-      if (notification.type === "DISPUTE_NOTIFICATION" && notification.data?.ticketId) {
-        window.location.href = `/admin/dispute-management?disputeId=${notification.data.ticketId}`;
-      } else if (notification.type === "PAYMENT_NOTIFICATION" && notification.data?.ticketId) {
-        window.location.href = `/admin/payment-management?reference=${notification.data.ticketId}`;
-      } else if (notification.data?.ticketId) {
-        window.location.href = `/tickets/${notification.data.ticketId}`;
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
       }
     };
 
@@ -161,7 +243,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onClose }) => {
             </div>
 
             <div className="flex items-center gap-2">
-              {notification.data?.ticketId && (
+              {redirectUrl && (
                 <button
                   onClick={handleViewDetails}
                   className="flex items-center gap-2 text-[#154751] hover:opacity-80 transition-opacity"
