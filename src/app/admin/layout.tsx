@@ -14,6 +14,7 @@ import useToastStore from "@/store/useToastStore";
 import { userDetailsStore } from "@/store/userDetailsStore";
 import { usePermissionsStore } from "@/store/Permissionsstore";
 import { useFilteredSidebarLinks } from "@/hooks/useFilteredSidebarLinks";
+import { useNotificationsStore } from "@/store/Notificationsstore";
 import NotificationsPanel from "../admin/notification/NotificationsPanel";
 
 interface ExtendedSession {
@@ -37,6 +38,9 @@ export default function AdminDashboardLayout({
 
   const { setPermissions, setRoles, canViewModule } = usePermissionsStore();
   const filteredSidebarLinks = useFilteredSidebarLinks(SideBarLinksWithPermissions);
+
+  // Get unread count from notifications store
+  const { unreadCount } = useNotificationsStore();
 
   const { fullUser, fetchUser } = userDetailsStore();
   const [userProfilePicture, setUserProfilePicture] = useState<string>("/images/user.png");
@@ -333,7 +337,9 @@ export default function AdminDashboardLayout({
               className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
               <Bell className="size-[23px] text-[#373737] hover:text-[#154751] transition-colors" />
-              <span className="absolute top-1 right-[2px] w-2 h-2 rounded-full bg-[#D84040] border border-white"></span>
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-[2px] w-2 h-2 rounded-full bg-[#D84040] border border-white"></span>
+              )}
             </button>
             <Separator orientation="vertical" className="mx-4 h-6" />
             <div className="relative size-[40px]">
@@ -358,7 +364,9 @@ export default function AdminDashboardLayout({
               className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
               <Bell className="size-[23px] text-[#6B6969] hover:text-[#154751] transition-colors" />
-              <span className="absolute top-1 right-[2px] w-2 h-2 rounded-full bg-[#D84040] border border-white"></span>
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-[2px] w-2 h-2 rounded-full bg-[#D84040] border border-white"></span>
+              )}
             </button>
             <button
               onClick={() => setIsMobileSidebarOpen(true)}
