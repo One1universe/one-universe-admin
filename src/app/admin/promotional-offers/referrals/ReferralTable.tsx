@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Referral } from "@/types/Referral";
+import React, { useState, useEffect } from "react";
+import { Referral } from "@/store/referralManagementStore";
 import ReferralEmptyState from "./ReferralEmptyState";
 import ReferralDetailModal from "./modal/ReferralDetailModal";
 import ResolveRewardModal from "./modal/ResolveRewardModal";
@@ -17,12 +17,35 @@ const ReferralTable = ({ referrals }: ReferralTableProps) => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
 
+  // DEBUG: Log incoming data
+  useEffect(() => {
+    console.log("\n=== TABLE COMPONENT RECEIVED ===");
+    console.log("Referrals count:", referrals.length);
+    console.log("Is array:", Array.isArray(referrals));
+
+    if (referrals.length > 0) {
+      const first = referrals[0];
+      console.log("First referral keys:", Object.keys(first));
+      console.log("Has firstTransactionStatus:", "firstTransactionStatus" in first);
+      console.log("firstTransactionStatus value:", first.firstTransactionStatus);
+      console.log("Type:", typeof first.firstTransactionStatus);
+
+      referrals.slice(0, 5).forEach((ref, i) => {
+        console.log(
+          `[${i}] ${ref.referrerName} → ${ref.referredName}:`,
+          ref.firstTransactionStatus ?? "(missing)"
+        );
+      });
+    }
+    console.log("=== END TABLE RECEIVED ===\n");
+  }, [referrals]);
+
   const handleActionClick = (
     referralId: string,
     event: React.MouseEvent<HTMLButtonElement>
   ) => {
     event.stopPropagation();
-    setOpenMenuId(prev => prev === referralId ? null : referralId);
+    setOpenMenuId((prev) => (prev === referralId ? null : referralId));
   };
 
   const openReferralDetail = (referral: Referral) => {
@@ -42,69 +65,111 @@ const ReferralTable = ({ referrals }: ReferralTableProps) => {
     setSelectedReferral(null);
   };
 
-  // ✅ NEW: Transaction status badge configuration with icons
-  const getTransactionConfig = (status: Referral["firstTransaction"], isMobile: boolean = false) => {
+  // FIXED: More robust status handling
+  const getTransactionConfig = (
+    status: string | null | undefined,
+    isMobile: boolean = false
+  ) => {
     const iconSize = isMobile ? 14 : 16;
-    const normalizedStatus = status?.toUpperCase();
-    
-    switch (normalizedStatus) {
-      case 'COMPLETED':
+
+    // Safeguard: treat undefined the same as null
+    const effectiveStatus = status ?? null;
+
+    console.log("Transaction Status Debug:", {
+      inputStatus: status,
+      effectiveStatus,
+      type: typeof status,
+      isUndefined: status === undefined,
+      isNull: status === null,
+    });
+
+    // No transaction if null, undefined, or empty string
+    if (
+      effectiveStatus === null ||
+      effectiveStatus === undefined ||
+      (typeof effectiveStatus === "string" && effectiveStatus.trim() === "")
+    ) {
+      return {
+        icon: <AlertTriangle size={iconSize} className="text-[#646264]" />,
+        bgClass: "bg-[#F5F5F5]",
+        textClass: "text-[#646264]",
+        label: "No Transaction",
+      };
+    }
+
+    const normalized = effectiveStatus.trim().toUpperCase();
+
+    switch (normalized) {
+      case "COMPLETED":
         return {
           icon: <CircleCheck size={iconSize} className="text-[#1FC16B]" />,
           bgClass: "bg-[#E0F5E6]",
           textClass: "text-[#1FC16B]",
-          label: "Completed"
+          label: "Completed",
         };
-      case 'PENDING':
+      case "PENDING":
         return {
           icon: <Clock size={iconSize} className="text-[#9D7F04]" />,
           bgClass: "bg-[#FFF2B9]",
           textClass: "text-[#9D7F04]",
-          label: "Pending"
+          label: "Pending",
+        };
+      case "FAILED":
+        return {
+          icon: <AlertTriangle size={iconSize} className="text-[#D84040]" />,
+          bgClass: "bg-[#FFE5E5]",
+          textClass: "text-[#D84040]",
+          label: "Failed",
         };
       default:
         return {
-          icon: <AlertTriangle size={iconSize} className="text-[#272727]" />,
-          bgClass: "bg-[#E5E5E5]",
-          textClass: "text-[#272727]",
-          label: status || "Unknown"
+          icon: <Clock size={iconSize} className="text-[#646264]" />,
+          bgClass: "bg-[#F5F5F5]",
+          textClass: "text-[#646264]",
+          label: effectiveStatus.trim(),
         };
     }
   };
 
-  // ✅ NEW: Status badge configuration with icons
   const getStatusConfig = (status: Referral["status"], isMobile: boolean = false) => {
     const iconSize = isMobile ? 14 : 16;
-    const normalizedStatus = status?.toUpperCase();
-    
-    switch (normalizedStatus) {
-      case 'PAID':
+    const normalized = status?.toUpperCase();
+
+    switch (normalized) {
+      case "PAID":
         return {
           icon: <CircleCheck size={iconSize} className="text-[#1FC16B]" />,
           bgClass: "bg-[#E0F5E6]",
           textClass: "text-[#1FC16B]",
-          label: "Paid"
+          label: "Paid",
         };
-      case 'PENDING':
+      case "PENDING":
         return {
           icon: <Clock size={iconSize} className="text-[#9D7F04]" />,
           bgClass: "bg-[#FFF2B9]",
           textClass: "text-[#9D7F04]",
-          label: "Pending"
+          label: "Pending",
         };
-      case 'PROCESSING':
+      case "PROCESSING":
         return {
           icon: <Loader2 size={iconSize} className="text-[#007BFF]" />,
           bgClass: "bg-[#D3E1FF]",
           textClass: "text-[#007BFF]",
-          label: "Processing"
+          label: "Processing",
+        };
+      case "INELIGIBLE":
+        return {
+          icon: <AlertTriangle size={iconSize} className="text-[#D84040]" />,
+          bgClass: "bg-[#FFE5E5]",
+          textClass: "text-[#D84040]",
+          label: "Ineligible",
         };
       default:
         return {
           icon: <Clock size={iconSize} className="text-[#272727]" />,
           bgClass: "bg-[#E5E5E5]",
           textClass: "text-[#272727]",
-          label: status || "Unknown"
+          label: status || "Unknown",
         };
     }
   };
@@ -147,35 +212,27 @@ const ReferralTable = ({ referrals }: ReferralTableProps) => {
               </thead>
               <tbody>
                 {referrals.map((referral) => {
-                  const transactionConfig = getTransactionConfig(referral.firstTransaction);
+                  const transactionConfig = getTransactionConfig(referral.firstTransactionStatus);
                   const statusConfig = getStatusConfig(referral.status);
-                  
+
                   return (
                     <tr key={referral.id} className="bg-white border-b border-[#E5E5E5] hover:bg-[#FAFAFA] relative">
                       <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">{referral.referrerName}</td>
                       <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">{referral.referredName}</td>
                       <td className="py-[18px] px-[25px]">
-                        {/* ✅ NEW: Transaction badge with icon */}
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-dm-sans ${transactionConfig.bgClass} ${transactionConfig.textClass}`}
-                        >
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-dm-sans ${transactionConfig.bgClass} ${transactionConfig.textClass}`}>
                           {transactionConfig.icon}
                           {transactionConfig.label}
                         </span>
                       </td>
                       <td className="py-[18px] px-[25px] font-dm-sans text-base text-[#303237]">{referral.signDate}</td>
                       <td className="py-[18px] px-[25px]">
-                        {/* ✅ NEW: Status badge with icon */}
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-dm-sans ${statusConfig.bgClass} ${statusConfig.textClass}`}
-                        >
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-dm-sans ${statusConfig.bgClass} ${statusConfig.textClass}`}>
                           {statusConfig.icon}
                           {statusConfig.label}
                         </span>
                       </td>
-                      <td className="py-[18px] px-[25px]">
-                        {getRewardIcon(referral.rewardEarned)}
-                      </td>
+                      <td className="py-[18px] px-[25px]">{getRewardIcon(referral.rewardEarned)}</td>
                       <td className="py-[18px] px-[25px]">
                         <div className="relative">
                           <button
@@ -189,7 +246,6 @@ const ReferralTable = ({ referrals }: ReferralTableProps) => {
                             </svg>
                           </button>
 
-                          {/* Action Menu */}
                           {openMenuId === referral.id && (
                             <div className="absolute right-0 mt-2 w-[169px] bg-white rounded-[20px] shadow-[0px_8px_29px_0px_#5F5E5E30] overflow-hidden z-40">
                               <button
@@ -220,9 +276,9 @@ const ReferralTable = ({ referrals }: ReferralTableProps) => {
           {/* Mobile Cards */}
           <div className="md:hidden space-y-4 p-4">
             {referrals.map((referral) => {
-              const transactionConfig = getTransactionConfig(referral.firstTransaction, true);
+              const transactionConfig = getTransactionConfig(referral.firstTransactionStatus, true);
               const statusConfig = getStatusConfig(referral.status, true);
-              
+
               return (
                 <div key={referral.id} className="bg-white border border-[#E8E3E3] rounded-lg p-4 shadow-sm">
                   <div className="flex justify-between items-start mb-3">
@@ -245,18 +301,11 @@ const ReferralTable = ({ referrals }: ReferralTableProps) => {
                   </div>
 
                   <div className="flex flex-wrap gap-2 mb-4">
-                    {/* ✅ NEW: Transaction badge with icon */}
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-dm-sans ${transactionConfig.bgClass} ${transactionConfig.textClass}`}
-                    >
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-dm-sans ${transactionConfig.bgClass} ${transactionConfig.textClass}`}>
                       {transactionConfig.icon}
                       {transactionConfig.label}
                     </span>
-                    
-                    {/* ✅ NEW: Status badge with icon */}
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-dm-sans ${statusConfig.bgClass} ${statusConfig.textClass}`}
-                    >
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-dm-sans ${statusConfig.bgClass} ${statusConfig.textClass}`}>
                       {statusConfig.icon}
                       {statusConfig.label}
                     </span>
@@ -267,17 +316,15 @@ const ReferralTable = ({ referrals }: ReferralTableProps) => {
                     <p className="font-dm-sans text-[#454345]"><span className="font-medium text-[#303237]">Reward:</span> {referral.rewardEarned ? "Yes" : "No"}</p>
                   </div>
 
-                  {/* Mobile View Details Button */}
                   <button
                     onClick={() => openReferralDetail(referral)}
                     className="w-full px-6 py-2 rounded-full flex items-center justify-center gap-2 text-white font-dm-sans font-medium text-base transition-opacity hover:opacity-90"
-                    style={{ background: 'radial-gradient(50% 50% at 50% 50%, #154751 37%, #04171F 100%)' }}
+                    style={{ background: "radial-gradient(50% 50% at 50% 50%, #154751 37%, #04171F 100%)" }}
                   >
                     <Eye width={18} height={18} />
                     <span>View Details</span>
                   </button>
 
-                  {/* Mobile Action Menu */}
                   {openMenuId === referral.id && (
                     <div className="mt-3 rounded-[20px] bg-white border border-[#E5E7EF] overflow-hidden">
                       <button
@@ -305,7 +352,6 @@ const ReferralTable = ({ referrals }: ReferralTableProps) => {
         <ReferralEmptyState />
       )}
 
-      {/* Referral Detail Modal */}
       {selectedReferral && (
         <ReferralDetailModal
           isOpen={isDetailModalOpen}
@@ -317,7 +363,6 @@ const ReferralTable = ({ referrals }: ReferralTableProps) => {
         />
       )}
 
-      {/* Resolve Reward Modal */}
       {selectedReferral && (
         <ResolveRewardModal
           isOpen={isResolveModalOpen}

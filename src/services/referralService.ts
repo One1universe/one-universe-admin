@@ -4,15 +4,18 @@ import getBaseUrl from "./baseUrl";
 
 const baseUrl = getBaseUrl("live");
 
+// src/services/referralService.ts
+// Update ONLY the ReferralItem interface - change number to string
+
 export interface ReferralItem {
   id: string;
   referrerId: string;
   referredId: string;
   signupDate: string;
-  firstTransactionAmount: number | null;
+  firstTransactionAmount: string | null; // ✅ CHANGED from number to string
   firstTransactionStatus: string | null;
   status: "PENDING" | "PROCESSING" | "PAID" | "INELIGIBLE";
-  rewardAmount: number | null;
+  rewardAmount: string | null; // ✅ CHANGED from number to string
   rewardPaidAt: string | null;
   rewardPaid: boolean;
   rewardTransactionId: string | null;
@@ -39,6 +42,8 @@ export interface ReferralItem {
     createdAt: string;
   }>;
 }
+
+// The rest of your service file stays the same...
 
 export interface ReferralStats {
   totalReferrals: number;
