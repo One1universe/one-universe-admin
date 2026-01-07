@@ -4,18 +4,15 @@ import getBaseUrl from "./baseUrl";
 
 const baseUrl = getBaseUrl("live");
 
-// src/services/referralService.ts
-// Update ONLY the ReferralItem interface - change number to string
-
 export interface ReferralItem {
   id: string;
   referrerId: string;
   referredId: string;
   signupDate: string;
-  firstTransactionAmount: string | null; // ✅ CHANGED from number to string
+  firstTransactionAmount: string | null; // CHANGED: now string to match backend format
   firstTransactionStatus: string | null;
   status: "PENDING" | "PROCESSING" | "PAID" | "INELIGIBLE";
-  rewardAmount: string | null; // ✅ CHANGED from number to string
+  rewardAmount: string | null; // CHANGED: now string to match backend format
   rewardPaidAt: string | null;
   rewardPaid: boolean;
   rewardTransactionId: string | null;
@@ -43,8 +40,6 @@ export interface ReferralItem {
   }>;
 }
 
-// The rest of your service file stays the same...
-
 export interface ReferralStats {
   totalReferrals: number;
   successfulReferrals: number;
@@ -61,6 +56,7 @@ export interface ReferralProgramSettings {
   platformFeePercentage: number;
   maxTransactionAmount: number | null;
   rewardEligibilityDays: number | null;
+  maxReferralsPerUserPerMonth: number | null; // ADDED: now properly typed
   createdAt: string;
   updatedAt: string;
 }
@@ -90,15 +86,15 @@ class ReferralService {
     const session = await getSession();
     
     if (!session?.accessToken) {
-      console.error("❌ No access token found in session");
+      console.error("No access token found in session");
       throw new Error("Unauthorized - Please log in again");
     }
 
     const fullUrl = `${baseUrl}${endpoint}`;
-    console.log("\n🌐 REQUEST START");
-    console.log("📍 Full URL:", fullUrl);
-    console.log("📝 Method:", options.method || "GET");
-    console.log("🔑 Token exists:", !!session.accessToken);
+    console.log("\nREQUEST START");
+    console.log("Full URL:", fullUrl);
+    console.log("Method:", options.method || "GET");
+    console.log("Token exists:", !!session.accessToken);
 
     try {
       const response = await fetch(fullUrl, {
@@ -110,75 +106,65 @@ class ReferralService {
         },
       });
 
-      console.log("\n📊 RESPONSE");
+      console.log("\nRESPONSE");
       console.log("Status:", response.status, response.statusText);
       console.log("URL:", response.url);
 
-      // Clone the response to read it
+      // Clone to read body for logging
       const clonedResponse = response.clone();
       const textData = await clonedResponse.text();
       console.log("Raw Response Text:", textData.substring(0, 300));
 
-      // Parse the JSON
       let data = {};
       try {
-        data = JSON.parse(textData);
-        console.log("Parsed JSON: ✅ Success");
+        data = textData ? JSON.parse(textData) : {};
+        console.log("Parsed JSON: Success");
       } catch (parseErr) {
         console.error("Failed to parse JSON:", parseErr);
       }
 
-      // Handle 401 - Token may have expired even with auto-refresh
       if (response.status === 401) {
-        console.error("❌ Unauthorized: Token expired or invalid");
+        console.error("Unauthorized: Token expired or invalid");
         throw new Error("Unauthorized - Session expired");
       }
 
       if (response.status === 403) {
-        console.error("❌ Forbidden: Access denied");
+        console.error("Forbidden: Access denied");
         throw new Error("Forbidden - Access denied");
       }
 
       if (!response.ok) {
-        console.error("❌ API Error");
+        console.error("API Error");
         console.error("Status:", response.status, response.statusText);
-        console.error("URL:", response.url);
         console.error("Data:", data);
-        console.error("Raw Text:", textData);
-        
-        // Extract error message from various possible formats
+
         let errorMessage = `API Error: ${response.status}`;
-        
         if (typeof data === 'object' && data !== null) {
           if ((data as any).message) errorMessage = (data as any).message;
           else if ((data as any).error) errorMessage = (data as any).error;
           else if ((data as any).detail) errorMessage = (data as any).detail;
         }
-        
+
         throw new Error(errorMessage);
       }
 
-      console.log("✅ Request successful");
+      console.log("Request successful");
       return data;
     } catch (error) {
-      console.error(`❌ Request failed for ${endpoint}:`, error);
+      console.error(`Request failed for ${endpoint}:`, error);
       throw error;
     }
   }
 
   /**
-   * Get all referrals
-   * Backend doesn't support query parameters, returns all data with pagination metadata
+   * Get all referrals with pagination
    */
-  async getAllReferrals(page: number = 1, limit: number = 20) {
+  async getAllReferrals(page: number = 1, limit: number = 20): Promise<ReferralsResponse> {
     console.log("\n=== getAllReferrals ===");
     console.log("Input - page:", page, "limit:", limit);
 
-    // Backend returns all data with pagination metadata
     const endpoint = `/referrals`;
-    console.log("Endpoint:", endpoint);
-
-    return this.request(endpoint) as Promise<ReferralsResponse>;
+    return this.request(endpoint);
   }
 
   /**
@@ -252,15 +238,13 @@ class ReferralService {
 
   /**
    * Upsert referral program settings
-   * ✅ POST endpoint that handles both create and update
-   * Supports partial updates - send only the fields you want to update
    */
   async updateSettings(payload: Partial<{
     active: boolean;
     platformFeePercentage: number;
-    maxTransactionAmount: number;
-    rewardEligibilityDays: number;
-    maxReferralsPerUserPerMonth: number;
+    maxTransactionAmount: number | null;
+    rewardEligibilityDays: number | null;
+    maxReferralsPerUserPerMonth: number | null;
   }>): Promise<ReferralProgramSettings> {
     console.log("\n=== updateSettings (POST /referrals/upsert) ===");
     console.log("payload:", payload);
@@ -273,7 +257,6 @@ class ReferralService {
 
   /**
    * Recalculate and retry payout for a referral
-   * POST /referrals/admin/recalculate-and-retry/{referralId}
    */
   async recalculateAndRetry(referralId: string): Promise<ReferralItem> {
     console.log("\n=== recalculateAndRetry ===");
@@ -286,7 +269,6 @@ class ReferralService {
 
   /**
    * Mark referral reward as paid (manual override)
-   * POST /referrals/admin/mark-paid
    */
   async markAsPaidAdmin(payload: {
     referralId: string;
@@ -295,20 +277,15 @@ class ReferralService {
   }): Promise<ReferralItem> {
     console.log("\n=== markAsPaidAdmin ===");
     console.log("Full Payload:", JSON.stringify(payload, null, 2));
-    console.log("Endpoint: PATCH /referrals/admin/mark-paid");
     
-    const response = this.request("/referrals/admin/mark-paid", {
+    return this.request("/referrals/admin/mark-paid", {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
-    
-    console.log("Request sent, waiting for response...");
-    return response;
   }
 
   /**
-   * Mark referral as ineligible
-   * POST /referrals/admin/mark-ineligible
+   * Mark referral as ineligible (admin)
    */
   async markAsIneligibleAdmin(payload: {
     referralId: string;
@@ -332,14 +309,12 @@ class ReferralService {
       method: "GET",
     });
 
-    // If the response is already a Blob, return it
     if (response instanceof Blob) {
       return response;
     }
 
-    // Otherwise convert to Blob
     return new Blob([JSON.stringify(response)], {
-      type: format === "csv" ? "text/csv" : "application/vnd.ms-excel",
+      type: format === "csv" ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
   }
 }

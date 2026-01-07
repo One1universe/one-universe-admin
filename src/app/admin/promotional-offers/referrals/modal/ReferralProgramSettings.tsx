@@ -1,8 +1,12 @@
-// ReferralProgramSettings.tsx
+// ============================================================================
+// PART 1: Fix the UI to show existing settings correctly
+// ============================================================================
+
+// ReferralProgramSettings.tsx - Updated
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, ChevronDown } from 'lucide-react';
+import { X } from 'lucide-react';
 import { referralManagementStore } from '@/store/referralManagementStore';
 
 interface ReferralProgramSettingsProps {
@@ -22,10 +26,10 @@ const ReferralProgramSettings: React.FC<ReferralProgramSettingsProps> = ({
   const [isProgramActive, setIsProgramActive] = useState(false);
   const [platformFeePercentage, setPlatformFeePercentage] = useState('');
   const [maxReferralsPerMonth, setMaxReferralsPerMonth] = useState('');
-  const [minTransactionAmount, setMinTransactionAmount] = useState('');
+  const [maxTransactionAmount, setMaxTransactionAmount] = useState(''); // ✅ RENAMED from minTransactionAmount
   const [eligibilityPeriod, setEligibilityPeriod] = useState('');
 
-  // Loading states for each section
+  // Loading states
   const [isSavingStatus, setIsSavingStatus] = useState(false);
   const [isSavingRewards, setIsSavingRewards] = useState(false);
   const [isSavingRules, setIsSavingRules] = useState(false);
@@ -35,25 +39,32 @@ const ReferralProgramSettings: React.FC<ReferralProgramSettingsProps> = ({
   const [rewardsMessage, setRewardsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [rulesMessage, setRulesMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Get updateSettings from store
-  const { updateSettings, settings } = referralManagementStore();
+  const { updateSettings, settings, fetchSettings } = referralManagementStore();
 
-  // Load existing settings when modal opens
+  // ✅ LOAD EXISTING SETTINGS when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      console.log('[SETTINGS MODAL] Loading existing settings...');
+      fetchSettings(); // Fetch latest settings from backend
+    }
+  }, [isOpen, fetchSettings]);
+
+  // ✅ POPULATE FORM with fetched settings
   useEffect(() => {
     if (isOpen && settings) {
+      console.log('[SETTINGS MODAL] Populating form with:', settings);
+      
       setIsProgramActive(settings.active || false);
       setPlatformFeePercentage(settings.platformFeePercentage?.toString() || '');
-      // Note: Backend doesn't return maxReferralsPerUserPerMonth in settings response
-      // So we leave it empty - user needs to set it
-      setMaxReferralsPerMonth('');
-      setMinTransactionAmount(settings.maxTransactionAmount?.toString() || '');
+      setMaxReferralsPerMonth(settings.maxReferralsPerUserPerMonth?.toString() || '');
+      setMaxTransactionAmount(settings.maxTransactionAmount?.toString() || '');
       setEligibilityPeriod(settings.rewardEligibilityDays?.toString() || '');
     }
   }, [isOpen, settings]);
 
   // Validation
   const isRewardConfigValid = platformFeePercentage !== '' && maxReferralsPerMonth !== '';
-  const isRulesConfigValid = minTransactionAmount !== '' && eligibilityPeriod !== '';
+  const isRulesConfigValid = maxTransactionAmount !== '' && eligibilityPeriod !== '';
 
   // Show message for 3 seconds
   const showMessage = (
@@ -112,7 +123,7 @@ const ReferralProgramSettings: React.FC<ReferralProgramSettingsProps> = ({
 
     try {
       const payload = {
-        maxTransactionAmount: parseInt(minTransactionAmount, 10),
+        maxTransactionAmount: parseInt(maxTransactionAmount, 10), // ✅ Sending as maxTransactionAmount
         rewardEligibilityDays: parseInt(eligibilityPeriod, 10),
       };
       console.log('Saving rules:', payload);
@@ -163,7 +174,6 @@ const ReferralProgramSettings: React.FC<ReferralProgramSettingsProps> = ({
           <div className="px-8 py-8 flex flex-col gap-8">
             {/* Program Status Section */}
             <div className="bg-white rounded-lg shadow-[0px_1px_2px_0px_#1A1A1A1F,0px_4px_6px_0px_#1A1A1A14,0px_8px_16px_0px_#1A1A1A14] p-4 flex flex-col gap-3">
-              {/* Alert */}
               {statusMessage && (
                 <div className={`rounded-lg px-4 py-3 mb-2 ${
                   statusMessage.type === 'success' 
@@ -204,7 +214,6 @@ const ReferralProgramSettings: React.FC<ReferralProgramSettingsProps> = ({
                 </div>
               </div>
 
-              {/* Save Status Button */}
               <button
                 onClick={handleSaveProgramStatus}
                 disabled={isSavingStatus}
@@ -228,7 +237,6 @@ const ReferralProgramSettings: React.FC<ReferralProgramSettingsProps> = ({
 
             {/* Reward Configuration Section */}
             <div className="bg-white rounded-lg shadow-[0px_1px_2px_0px_#1A1A1A1F,0px_4px_6px_0px_#1A1A1A14,0px_8px_16px_0px_#1A1A1A14] p-4 flex flex-col gap-3">
-              {/* Alert */}
               {rewardsMessage && (
                 <div className={`rounded-lg px-4 py-3 mb-2 ${
                   rewardsMessage.type === 'success' 
@@ -249,7 +257,6 @@ const ReferralProgramSettings: React.FC<ReferralProgramSettingsProps> = ({
               <div className="border-t border-[#E8E3E3]" />
               
               <div className="flex flex-col gap-4 mt-2">
-                {/* Platform Fee Percentage */}
                 <div className="flex flex-col gap-1">
                   <label className="font-dm-sans font-medium text-base text-[#05060D]">
                     Platform Fee Percentage (%)
@@ -261,15 +268,14 @@ const ReferralProgramSettings: React.FC<ReferralProgramSettingsProps> = ({
                     step="0.1"
                     value={platformFeePercentage}
                     onChange={(e) => setPlatformFeePercentage(e.target.value)}
-                    placeholder="Enter percentage"
+                    placeholder="Enter percentage (e.g., 5)"
                     className="w-full h-11 rounded-xl border border-[#B2B2B4] px-4 py-3 font-dm-sans text-base text-[#171417] placeholder:text-[#B7B6B7] focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   />
                   <p className="font-dm-sans font-normal text-xs text-[#454345]">
-                    Percentage of transaction value given as referral reward
+                    Platform fee percentage. Reward = 10% of this fee from transaction.
                   </p>
                 </div>
 
-                {/* Maximum Referrals per User per Month */}
                 <div className="flex flex-col gap-1">
                   <label className="font-dm-sans font-medium text-base text-[#05060D]">
                     Maximum Referrals per User per Month
@@ -279,7 +285,7 @@ const ReferralProgramSettings: React.FC<ReferralProgramSettingsProps> = ({
                     min="0"
                     value={maxReferralsPerMonth}
                     onChange={(e) => setMaxReferralsPerMonth(e.target.value)}
-                    placeholder="Enter number"
+                    placeholder="Enter number (e.g., 10)"
                     className="w-full h-11 rounded-xl border border-[#B2B2B4] px-4 py-3 font-dm-sans text-base text-[#171417] placeholder:text-[#B7B6B7] focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   />
                   <p className="font-dm-sans font-normal text-xs text-[#454345]">
@@ -287,7 +293,6 @@ const ReferralProgramSettings: React.FC<ReferralProgramSettingsProps> = ({
                   </p>
                 </div>
 
-                {/* Save Rewards Button */}
                 <button
                   onClick={handleSaveRewardConfig}
                   disabled={!isRewardConfigValid || isSavingRewards}
@@ -312,7 +317,6 @@ const ReferralProgramSettings: React.FC<ReferralProgramSettingsProps> = ({
 
             {/* Referral Rules & Requirements Section */}
             <div className="bg-white rounded-lg shadow-[0px_1px_2px_0px_#1A1A1A1F,0px_4px_6px_0px_#1A1A1A14,0px_8px_16px_0px_#1A1A1A14] p-4 flex flex-col gap-3">
-              {/* Alert */}
               {rulesMessage && (
                 <div className={`rounded-lg px-4 py-3 mb-2 ${
                   rulesMessage.type === 'success' 
@@ -332,25 +336,24 @@ const ReferralProgramSettings: React.FC<ReferralProgramSettingsProps> = ({
               </h3>
               
               <div className="flex flex-col gap-4">
-                {/* Minimum Transaction Amount for Reward */}
+                {/* ✅ FIXED LABEL - This is MAXIMUM, not minimum */}
                 <div className="flex flex-col gap-1">
                   <label className="font-dm-sans font-medium text-base text-[#05060D]">
-                    Minimum Transaction Amount for Reward (₦)
+                    Maximum Transaction Amount for Reward (₦)
                   </label>
                   <input
                     type="number"
                     min="0"
-                    value={minTransactionAmount}
-                    onChange={(e) => setMinTransactionAmount(e.target.value)}
-                    placeholder="Enter amount"
+                    value={maxTransactionAmount}
+                    onChange={(e) => setMaxTransactionAmount(e.target.value)}
+                    placeholder="Enter amount (e.g., 100000)"
                     className="w-full h-11 rounded-xl border border-[#B2B2B4] px-4 py-3 font-dm-sans text-base text-[#171417] placeholder:text-[#B7B6B7] focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   />
                   <p className="font-dm-sans font-normal text-xs text-[#454345]">
-                    Minimum amount of referred user's first transaction to qualify for reward
+                    ⚠️ Transactions ABOVE this amount will NOT qualify for referral rewards
                   </p>
                 </div>
 
-                {/* Reward Eligibility Period */}
                 <div className="flex flex-col gap-1">
                   <label className="font-dm-sans font-medium text-base text-[#05060D]">
                     Reward Eligibility Period (Days)
@@ -360,15 +363,14 @@ const ReferralProgramSettings: React.FC<ReferralProgramSettingsProps> = ({
                     min="0"
                     value={eligibilityPeriod}
                     onChange={(e) => setEligibilityPeriod(e.target.value)}
-                    placeholder="Enter days number"
+                    placeholder="Enter days (e.g., 30)"
                     className="w-full h-11 rounded-xl border border-[#B2B2B4] px-4 py-3 font-dm-sans text-base text-[#171417] placeholder:text-[#B7B6B7] focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   />
                   <p className="font-dm-sans font-normal text-xs text-[#454345]">
-                    Number of days referred user has to complete first transaction
+                    Number of days from signup for first transaction to qualify for reward
                   </p>
                 </div>
 
-                {/* Save Rules Button */}
                 <button
                   onClick={handleSaveRules}
                   disabled={!isRulesConfigValid || isSavingRules}
