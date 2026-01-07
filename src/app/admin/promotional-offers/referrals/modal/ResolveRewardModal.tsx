@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { X, ArrowLeft, CircleCheck, Clock, Loader2 } from "lucide-react";
-import { Referral } from "@/types/Referral";
+import { X, ArrowLeft, CircleCheck, Clock, Loader2, AlertTriangle } from "lucide-react";
+import { Referral } from "@/store/referralManagementStore";
 import MarkIneligibleModal from "./IneligibleRewardModal";
 import MarkAsPaidModal from "./MarkAsPaidModal";
 import { referralService } from "@/services/referralService";
@@ -61,8 +61,8 @@ const ResolveRewardModal: React.FC<ResolveRewardModalProps> = ({
     if (onActionComplete) onActionComplete();
   };
 
-  // ✅ NEW: Get status badge configuration
-  const getStatusConfig = (status: Referral["status"]) => {
+  // ✅ Get status badge configuration
+  const getStatusConfig = (status: "PENDING" | "PROCESSING" | "PAID" | "INELIGIBLE") => {
     const normalizedStatus = status?.toUpperCase();
     
     switch (normalizedStatus) {
@@ -86,6 +86,13 @@ const ResolveRewardModal: React.FC<ResolveRewardModalProps> = ({
           bgClass: "bg-[#D3E1FF]",
           textClass: "text-[#007BFF]",
           label: "Processing"
+        };
+      case 'INELIGIBLE':
+        return {
+          icon: <AlertTriangle size={16} className="text-[#D84040]" />,
+          bgClass: "bg-[#FFE5E5]",
+          textClass: "text-[#D84040]",
+          label: "Ineligible"
         };
       default:
         return {
@@ -185,11 +192,11 @@ const ResolveRewardModal: React.FC<ResolveRewardModalProps> = ({
                   Referral ID
                 </span>
                 <span className="font-dm-sans font-medium text-base text-[#454345]">
-                  {referral.referralId}
+                  {referral.id.substring(0, 8)}...
                 </span>
               </div>
 
-              {/* Status - ✅ NEW: Beautiful badge with icon */}
+              {/* Status - ✅ Beautiful badge with icon */}
               <div className="flex items-center justify-between">
                 <span className="font-dm-sans font-medium text-base text-[#171417]">
                   Status
@@ -208,7 +215,7 @@ const ResolveRewardModal: React.FC<ResolveRewardModalProps> = ({
                   Reward Amount
                 </span>
                 <span className="font-dm-sans font-medium text-base text-[#454345]">
-                  ₦{(referral.rewardAmount || 0).toLocaleString()}
+                  ₦{parseFloat(referral.rewardAmount || '0').toLocaleString()}
                 </span>
               </div>
 
