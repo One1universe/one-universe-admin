@@ -1,6 +1,6 @@
 import React from "react";
 import { X, ArrowLeft, CircleCheck, Clock, Loader2, AlertTriangle } from "lucide-react";
-import { Referral } from "@/types/Referral";
+import { Referral } from "@/store/referralManagementStore"; 
 
 interface ReferralDetailModalProps {
   isOpen: boolean;
@@ -23,11 +23,11 @@ const ReferralDetailModal: React.FC<ReferralDetailModalProps> = ({
     },
     {
       date: referral.signDate,
-      event: `First transaction status: ${referral.firstTransaction}`,
+      event: `First transaction status: ${referral.firstTransactionStatus || 'Unknown'}`,
     },
     {
       date: referral.signDate,
-      event: `Referral reward calculated: ₦${(referral.rewardAmount || 0).toLocaleString()}`,
+      event: `Referral reward calculated: ₦${parseFloat(referral.rewardAmount || '0').toLocaleString()}`,
     },
     {
       date: referral.signDate,
@@ -37,8 +37,8 @@ const ReferralDetailModal: React.FC<ReferralDetailModalProps> = ({
     },
   ];
 
-  // ✅ NEW: Transaction status badge configuration
-  const getTransactionConfig = (status: Referral["firstTransaction"]) => {
+  // ✅ Transaction status badge configuration
+  const getTransactionConfig = (status: string | null) => {
     const normalizedStatus = status?.toUpperCase();
     
     switch (normalizedStatus) {
@@ -66,8 +66,8 @@ const ReferralDetailModal: React.FC<ReferralDetailModalProps> = ({
     }
   };
 
-  // ✅ NEW: Payment status badge configuration
-  const getStatusConfig = (status: Referral["status"]) => {
+  // ✅ Payment status badge configuration
+  const getStatusConfig = (status: "PENDING" | "PROCESSING" | "PAID" | "INELIGIBLE") => {
     const normalizedStatus = status?.toUpperCase();
     
     switch (normalizedStatus) {
@@ -92,6 +92,13 @@ const ReferralDetailModal: React.FC<ReferralDetailModalProps> = ({
           textClass: "text-[#007BFF]",
           label: "Processing"
         };
+      case 'INELIGIBLE':
+        return {
+          icon: <AlertTriangle size={16} className="text-[#D84040]" />,
+          bgClass: "bg-[#FFE5E5]",
+          textClass: "text-[#D84040]",
+          label: "Ineligible"
+        };
       default:
         return {
           icon: <Clock size={16} className="text-[#272727]" />,
@@ -102,7 +109,7 @@ const ReferralDetailModal: React.FC<ReferralDetailModalProps> = ({
     }
   };
 
-  const transactionConfig = getTransactionConfig(referral.firstTransaction);
+  const transactionConfig = getTransactionConfig(referral.firstTransactionStatus);
   const statusConfig = getStatusConfig(referral.status);
 
   return (
@@ -121,7 +128,7 @@ const ReferralDetailModal: React.FC<ReferralDetailModalProps> = ({
           onClick={(e) => e.stopPropagation()}
         >
           {/* Teal Header */}
-          <div className="bg-[#E8FBF7] px-8 pt-8 pb-4 border-b border-[#E8E3E3] flex items-center justify-between">
+          <div className="bg-[#E8FBF7] px-8 pt-8 pb-4 border-[#E8E3E3] flex items-center justify-between">
             <div className="flex items-center gap-6">
               <button
                 onClick={onClose}
@@ -151,7 +158,7 @@ const ReferralDetailModal: React.FC<ReferralDetailModalProps> = ({
                   Referral ID
                 </span>
                 <span className="font-dm-sans font-medium text-base text-[#171417]">
-                  {referral.referralId}
+                  {referral.id.substring(0, 8)}...
                 </span>
               </div>
 
@@ -175,7 +182,7 @@ const ReferralDetailModal: React.FC<ReferralDetailModalProps> = ({
                 </span>
               </div>
 
-              {/* First Transaction - ✅ NEW: Beautiful badge with icon */}
+              {/* First Transaction - ✅ Beautiful badge with icon */}
               <div className="flex items-center justify-between">
                 <span className="font-dm-sans font-medium text-base text-[#171417]">
                   First Transaction
@@ -188,7 +195,7 @@ const ReferralDetailModal: React.FC<ReferralDetailModalProps> = ({
                 </span>
               </div>
 
-              {/* Status - ✅ NEW: Beautiful badge with icon */}
+              {/* Status - ✅ Beautiful badge with icon */}
               <div className="flex items-center justify-between">
                 <span className="font-dm-sans font-medium text-base text-[#171417]">
                   Status
@@ -241,7 +248,7 @@ const ReferralDetailModal: React.FC<ReferralDetailModalProps> = ({
                   Reward Amount
                 </span>
                 <span className="font-dm-sans font-medium text-base text-[#454345]">
-                  ₦{(referral.rewardAmount || 0).toLocaleString()}
+                  ₦{parseFloat(referral.rewardAmount || '0').toLocaleString()}
                 </span>
               </div>
 
