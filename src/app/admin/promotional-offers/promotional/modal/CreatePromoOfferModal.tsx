@@ -40,6 +40,11 @@ export default function CreatePromoOfferModal({
     status: mode === "create" ? "DRAFT" : "DRAFT",
   });
 
+  // Get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    return new Date().toISOString().split('T')[0];
+  };
+
   useEffect(() => {
     if (offerToEdit && mode === "edit") {
       setFormData({
@@ -202,6 +207,8 @@ export default function CreatePromoOfferModal({
 
   if (!isOpen) return null;
 
+  const todayDate = getTodayDate();
+
   return (
     <>
       <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose} />
@@ -309,8 +316,10 @@ export default function CreatePromoOfferModal({
                     value={formData.startDate}
                     onChange={handleInputChange}
                     disabled={isSubmitting}
-                    className="w-full px-4 py-3 border border-[#B2B2B4] rounded-lg font-dm-sans text-base focus:outline-none disabled:bg-gray-100"
+                    min={todayDate}
+                    className="w-full px-4 py-3 border border-[#B2B2B4] rounded-lg font-dm-sans text-base focus:outline-none focus:border-[#154751] disabled:bg-gray-100"
                   />
+                  <p className="text-xs text-gray-500">From today onwards</p>
                 </div>
                 <div className="space-y-2">
                   <label className="font-dm-sans font-medium text-base text-[#171417]">
@@ -322,8 +331,10 @@ export default function CreatePromoOfferModal({
                     value={formData.endDate}
                     onChange={handleInputChange}
                     disabled={isSubmitting}
-                    className="w-full px-4 py-3 border border-[#B2B2B4] rounded-lg font-dm-sans text-base focus:outline-none disabled:bg-gray-100"
+                    min={todayDate}
+                    className="w-full px-4 py-3 border border-[#B2B2B4] rounded-lg font-dm-sans text-base focus:outline-none focus:border-[#154751] disabled:bg-gray-100"
                   />
+                  <p className="text-xs text-gray-500">Must be after start date</p>
                 </div>
               </div>
 

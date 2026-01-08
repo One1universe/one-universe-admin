@@ -9,10 +9,10 @@ export interface ReferralItem {
   referrerId: string;
   referredId: string;
   signupDate: string;
-  firstTransactionAmount: string | null; // CHANGED: now string to match backend format
+  firstTransactionAmount: string | null; 
   firstTransactionStatus: string | null;
   status: "PENDING" | "PROCESSING" | "PAID" | "INELIGIBLE";
-  rewardAmount: string | null; // CHANGED: now string to match backend format
+  rewardAmount: string | null; 
   rewardPaidAt: string | null;
   rewardPaid: boolean;
   rewardTransactionId: string | null;
@@ -207,6 +207,12 @@ class ReferralService {
       body: JSON.stringify(payload),
     });
   }
+
+  async getReferralSettingsById(settingsId: string): Promise<ReferralProgramSettings> {
+  console.log("\n=== getReferralSettingsById ===");
+  console.log("settingsId:", settingsId);
+  return this.request(`/referrals/settings/${encodeURIComponent(settingsId)}`);
+}
 
   /**
    * Mark referral as paid
