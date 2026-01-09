@@ -90,6 +90,24 @@ const UpdatePlanPricingModal: React.FC<UpdatePlanPricingModalProps> = ({
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const { updatePlanPrice, updating, updateError } = usePlanStore();
+  const monthlyInputRef = React.useRef<HTMLInputElement>(null);
+  const yearlyInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Auto-select and focus the plan being edited when modal opens
+  useEffect(() => {
+    if (isOpen && plan?.id) {
+      setSelectedPlanId(plan.id);
+      
+      // Focus the appropriate input based on plan type
+      setTimeout(() => {
+        if (plan.type === "MONTHLY" && monthlyInputRef.current) {
+          monthlyInputRef.current.focus();
+        } else if (plan.type === "YEARLY" && yearlyInputRef.current) {
+          yearlyInputRef.current.focus();
+        }
+      }, 100);
+    }
+  }, [isOpen, plan?.id, plan?.type]);
 
   if (!isOpen || !plan) return null;
 
@@ -158,6 +176,10 @@ const UpdatePlanPricingModal: React.FC<UpdatePlanPricingModalProps> = ({
     (selectedPlanId === yearlyPlan?.id && yearlyPrice)
   );
 
+  // Check if each variant is the one being edited
+  const isMonthlyBeingEdited = selectedPlanId === monthlyPlan?.id;
+  const isYearlyBeingEdited = selectedPlanId === yearlyPlan?.id;
+
   return (
     <>
       {/* Overlay */}
@@ -195,7 +217,11 @@ const UpdatePlanPricingModal: React.FC<UpdatePlanPricingModalProps> = ({
             {/* Current Prices */}
             <div className="flex flex-col md:flex-row gap-4">
               {monthlyPlan && (
-                <div className="flex-1 bg-[#FFFCFC] border-l-4 border-[#154751] rounded-[8px] p-4 flex flex-col gap-2">
+                <div className={`flex-1 border-l-4 rounded-[8px] p-4 flex flex-col gap-2 transition-all ${
+                  isMonthlyBeingEdited
+                    ? "bg-[#E8FBF7] border-l-[#154751]"
+                    : "bg-[#F5F5F5] border-l-[#D0D0D0]"
+                }`}>
                   <p className="text-xs text-[#6B6969] font-dm-sans">Current Monthly Price</p>
                   <p className="text-lg font-bold text-[#171417]">
                     ₦{(monthlyPlan.price || 0).toLocaleString()}/month
@@ -203,7 +229,11 @@ const UpdatePlanPricingModal: React.FC<UpdatePlanPricingModalProps> = ({
                 </div>
               )}
               {yearlyPlan && (
-                <div className="flex-1 bg-[#FFFCFC] border-l-4 border-[#1ABF9E] rounded-[8px] p-4 flex flex-col gap-2">
+                <div className={`flex-1 border-l-4 rounded-[8px] p-4 flex flex-col gap-2 transition-all ${
+                  isYearlyBeingEdited
+                    ? "bg-[#E8FBF7] border-l-[#1ABF9E]"
+                    : "bg-[#F5F5F5] border-l-[#D0D0D0]"
+                }`}>
                   <p className="text-xs text-[#6B6969] font-dm-sans">Current Yearly Price</p>
                   <p className="text-lg font-bold text-[#171417]">
                     ₦{(yearlyPlan.price || 0).toLocaleString()}/year
@@ -215,56 +245,68 @@ const UpdatePlanPricingModal: React.FC<UpdatePlanPricingModalProps> = ({
             {/* New Prices - Inputs */}
             <div className="flex flex-col md:flex-row gap-4">
               {/* Monthly Input */}
-              <div className="flex-1 flex flex-col gap-2">
-                <label className={`font-dm-sans font-medium ${
-                  selectedPlanId === monthlyPlan?.id ? "text-[#154751]" : "text-[#05060D]"
-                }`}>
-                  New Monthly Price (₦)
-                </label>
-                <input
-                  type="text"
-                  value={monthlyPrice}
-                  onChange={(e) => {
-                    setMonthlyPrice(formatPrice(e.target.value));
-                    if (monthlyPlan?.id) setSelectedPlanId(monthlyPlan.id);
-                  }}
-                  onFocus={() => {
-                    if (monthlyPlan?.id) setSelectedPlanId(monthlyPlan.id);
-                  }}
-                  placeholder="Enter amount"
-                  className={`w-full px-4 py-3 rounded-[12px] border-2 focus:outline-none text-center font-dm-sans text-lg transition-colors ${
-                    selectedPlanId === monthlyPlan?.id
-                      ? "border-[#154751] bg-white"
-                      : "border-[#B2B2B4] bg-[#F9F9F9]"
-                  }`}
-                />
-              </div>
+              {monthlyPlan && (
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className={`font-dm-sans font-medium transition-colors ${
+                    isMonthlyBeingEdited ? "text-[#154751]" : "text-[#999999]"
+                  }`}>
+                    New Monthly Price (₦)
+                  </label>
+                  <input
+                    ref={monthlyInputRef}
+                    type="text"
+                    value={monthlyPrice}
+                    onChange={(e) => {
+                      setMonthlyPrice(formatPrice(e.target.value));
+                      if (monthlyPlan?.id) setSelectedPlanId(monthlyPlan.id);
+                    }}
+                    onFocus={() => {
+                      if (monthlyPlan?.id) setSelectedPlanId(monthlyPlan.id);
+                    }}
+                    placeholder="Enter amount"
+                    disabled={!isMonthlyBeingEdited && isYearlyBeingEdited}
+                    className={`w-full px-4 py-3 rounded-[12px] border-2 focus:outline-none text-center font-dm-sans text-lg transition-all ${
+                      isMonthlyBeingEdited
+                        ? "border-[#154751] bg-white cursor-text"
+                        : isYearlyBeingEdited
+                        ? "border-[#D0D0D0] bg-[#F5F5F5] cursor-not-allowed opacity-50"
+                        : "border-[#B2B2B4] bg-[#F9F9F9]"
+                    }`}
+                  />
+                </div>
+              )}
 
               {/* Yearly Input */}
-              <div className="flex-1 flex flex-col gap-2">
-                <label className={`font-dm-sans font-medium ${
-                  selectedPlanId === yearlyPlan?.id ? "text-[#1ABF9E]" : "text-[#05060D]"
-                }`}>
-                  New Yearly Price (₦)
-                </label>
-                <input
-                  type="text"
-                  value={yearlyPrice}
-                  onChange={(e) => {
-                    setYearlyPrice(formatPrice(e.target.value));
-                    if (yearlyPlan?.id) setSelectedPlanId(yearlyPlan.id);
-                  }}
-                  onFocus={() => {
-                    if (yearlyPlan?.id) setSelectedPlanId(yearlyPlan.id);
-                  }}
-                  placeholder="Enter amount"
-                  className={`w-full px-4 py-3 rounded-[12px] border-2 focus:outline-none text-center font-dm-sans text-lg transition-colors ${
-                    selectedPlanId === yearlyPlan?.id
-                      ? "border-[#1ABF9E] bg-white"
-                      : "border-[#B2B2B4] bg-[#F9F9F9]"
-                  }`}
-                />
-              </div>
+              {yearlyPlan && (
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className={`font-dm-sans font-medium transition-colors ${
+                    isYearlyBeingEdited ? "text-[#1ABF9E]" : "text-[#999999]"
+                  }`}>
+                    New Yearly Price (₦)
+                  </label>
+                  <input
+                    ref={yearlyInputRef}
+                    type="text"
+                    value={yearlyPrice}
+                    onChange={(e) => {
+                      setYearlyPrice(formatPrice(e.target.value));
+                      if (yearlyPlan?.id) setSelectedPlanId(yearlyPlan.id);
+                    }}
+                    onFocus={() => {
+                      if (yearlyPlan?.id) setSelectedPlanId(yearlyPlan.id);
+                    }}
+                    placeholder="Enter amount"
+                    disabled={!isYearlyBeingEdited && isMonthlyBeingEdited}
+                    className={`w-full px-4 py-3 rounded-[12px] border-2 focus:outline-none text-center font-dm-sans text-lg transition-all ${
+                      isYearlyBeingEdited
+                        ? "border-[#1ABF9E] bg-white cursor-text"
+                        : isMonthlyBeingEdited
+                        ? "border-[#D0D0D0] bg-[#F5F5F5] cursor-not-allowed opacity-50"
+                        : "border-[#B2B2B4] bg-[#F9F9F9]"
+                    }`}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Error Message in Modal */}

@@ -28,6 +28,8 @@ const SubscriptionTable: React.FC<SubscriptionTableProps> = ({
       
       return {
         ...sub,
+        userId: sub.userId,
+        id: sub.id,
         sellerName: sub.user.fullName,
         email: sub.user.email,
         phone: sub.user.phone,
@@ -98,6 +100,7 @@ const SubscriptionTable: React.FC<SubscriptionTableProps> = ({
 
     setSelectedSubscription({
       id: sub.id,
+      userId: sub.userId,
       sellerName: sub.sellerName,
       email: sub.email,
       phone: sub.phone,

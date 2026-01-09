@@ -1,16 +1,17 @@
 "use client";
 
-import React, { useState } from "react";
-import { X, User, CheckCircle, Loader2, AlertCircle } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { X, User, CheckCircle, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
+import useToastStore from "../../../../../store/useToastStore";
 
 interface SubscriptionDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   subscription: {
     id: string;
-    userId?: string;
+    userId: string;
     sellerName: string;
     email: string;
     phone: string;
@@ -70,30 +71,40 @@ const SubscriptionDetailsModal: React.FC<SubscriptionDetailsModalProps> = ({
   onReminderSent,
 }) => {
   const { data: session } = useSession();
+  const { showToast } = useToastStore();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+
+  // Reset loading state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setLoading(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen || !subscription) return null;
 
   const payments = subscription.payments || [];
 
   const handleSendReminder = async () => {
-    if (!subscription.userId) {
-      setError("User ID not found");
+    console.log("📋 Full subscription object:", subscription);
+    console.log("🆔 userId value:", subscription?.userId);
+    
+    if (!subscription?.userId || subscription.userId.trim() === '') {
+      showToast("error", "Error", "User ID not found in subscription data");
+      console.error("❌ User ID missing or empty from subscription:", subscription);
       return;
     }
 
     if (!session?.accessToken) {
-      setError("You are not authenticated");
+      showToast("error", "Authentication Error", "You are not authenticated. Please log in again.");
       return;
     }
 
     setLoading(true);
-    setError(null);
-    setSuccess(false);
 
     try {
+      console.log("📤 Sending reminder to user:", subscription.userId);
+      
       const response = await fetch(
         `https://one-universe-de5673cf0d65.herokuapp.com/api/v1/subscription/${subscription.userId}/notify-expired`,
         {
@@ -113,14 +124,16 @@ const SubscriptionDetailsModal: React.FC<SubscriptionDetailsModalProps> = ({
       const data = await response.json();
       console.log("✅ Reminder sent successfully:", data);
 
-      setSuccess(true);
+      showToast(
+        "success",
+        "Reminder Sent!",
+        `Notification successfully sent to ${subscription.sellerName}`
+      );
+      
       onReminderSent?.();
-
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to send reminder";
-      setError(errorMessage);
+      showToast("error", "Failed to Send Reminder", errorMessage);
       console.error("❌ Error sending reminder:", errorMessage);
     } finally {
       setLoading(false);
@@ -265,22 +278,6 @@ const SubscriptionDetailsModal: React.FC<SubscriptionDetailsModalProps> = ({
 
               {/* Horizontal Divider - Mobile Only */}
               <div className="md:hidden -mx-6 h-px bg-[#E8E3E3]" />
-
-              {/* Error Message */}
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
-                  <AlertCircle className="text-red-500" size={20} />
-                  <p className="text-red-700 text-sm font-dm-sans">{error}</p>
-                </div>
-              )}
-
-              {/* Success Message */}
-              {success && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
-                  <CheckCircle className="text-green-500" size={20} />
-                  <p className="text-green-700 text-sm font-dm-sans">Reminder sent successfully!</p>
-                </div>
-              )}
 
               {/* Send Reminder Button */}
               <div className="flex justify-center md:justify-end">

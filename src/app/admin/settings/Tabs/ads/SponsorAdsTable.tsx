@@ -31,6 +31,8 @@ const SponsorAdsTable: React.FC<SponsorAdsTableProps> = ({
       
       return {
         ...ad,
+        userId: ad.userId,
+        id: ad.id,
         sellerName: ad.user.fullName,
         email: ad.user.email,
         phone: ad.user.phone,
@@ -117,7 +119,7 @@ const SponsorAdsTable: React.FC<SponsorAdsTableProps> = ({
 
     setSelectedSubscriber({
       id: ad.id,
-      userId: ad.userId || ad.user.id,
+      userId: ad.userId,
       sellerName: ad.sellerName,
       businessName: ad.sellerName,
       email: ad.email,
