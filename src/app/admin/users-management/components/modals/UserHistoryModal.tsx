@@ -41,6 +41,7 @@ interface BookingHistory {
     fullName: string;
   };
   status: "PENDING" | "ACCEPTED" | "ONGOING" | "COMPLETED" | "CANCELLED" | "DISPUTE";
+  effectiveStatus: string;
   createdAt: string;
 }
 
@@ -296,7 +297,7 @@ const UserHistoryModal = ({ isOpen, onClose, userId, userName }: UserHistoryModa
                                     </div>
                                     <div className="flex flex-col items-end gap-2">
                                       <span className="text-sm text-[#646264]">{time}</span>
-                                      {getStatusBadge(booking.status)}
+                                      {getStatusBadge(booking.effectiveStatus)}
                                     </div>
                                   </div>
                                   <div className="border-b border-[#B7B6B7]"></div>
