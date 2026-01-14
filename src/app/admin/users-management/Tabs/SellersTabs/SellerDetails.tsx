@@ -108,12 +108,12 @@ const SellerDetails = () => {
   const profile = displayUser.profile || displayUser.sellerProfile;
   const wallet = displayUser.wallet || displayUser.Wallet;
   
-  // Get bookingStats from backend
-  const bookingStats: BookingStatsType = displayUser.bookingStats || {
-    totalBookings: 0,
-    ongoingBookings: 0,
-    completedBookings: 0,
-    disputedBookings: 0,
+  // Get bookingStats from backend - ensure it's properly extracted with fallback
+  const bookingStats: BookingStatsType = {
+    totalBookings: displayUser.bookingStats?.totalBookings ?? 0,
+    ongoingBookings: displayUser.bookingStats?.ongoingBookings ?? 0,
+    completedBookings: displayUser.bookingStats?.completedBookings ?? 0,
+    disputedBookings: displayUser.bookingStats?.disputedBookings ?? 0,
   };
 
   // Get verification data
@@ -537,12 +537,6 @@ const SellerDetails = () => {
                           </p>
                         </div>
                       </div>
-
-                      {bookingStats.totalBookings === 0 && (
-                        <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                          <p className="text-sm text-gray-600 text-center">No booking activity yet</p>
-                        </div>
-                      )}
                     </aside>
                   </section>
                 </section>
