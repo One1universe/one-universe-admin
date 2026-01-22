@@ -50,17 +50,43 @@ type VerificationDataType = {
 
 const BuyerDetails = () => {
   const { modalType, selectedUser, closeModal } = userManagementStore();
-  const { fullUser, loading, fetchUser } = userDetailsStore();
+  const { fullUser, loading, fetchUser, clearUser } = userDetailsStore();
   const { data: session } = useSession();
   const [showHistory, setShowHistory] = useState(false);
   const [showPhotoComparison, setShowPhotoComparison] = useState(false);
 
+  // Fetch user when modal opens
   useEffect(() => {
     if (modalType === "openBuyer" && selectedUser?.id && session?.accessToken) {
       console.log("🔍 Fetching full buyer details for:", selectedUser.id);
       fetchUser(selectedUser.id, session.accessToken);
     }
   }, [modalType, selectedUser?.id, session?.accessToken, fetchUser]);
+
+  // Clear user when modal closes
+  useEffect(() => {
+    return () => {
+      if (modalType !== "openBuyer") {
+        clearUser();
+      }
+    };
+  }, [modalType, clearUser]);
+
+  // Handle visibility change (tab switch)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && modalType === "openBuyer") {
+        console.log("📵 Page hidden, closing buyer modal");
+        clearUser();
+        closeModal();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [modalType, clearUser, closeModal]);
 
   const getValidStatus = (
     status: string | undefined
@@ -87,6 +113,12 @@ const BuyerDetails = () => {
       month: "long",
       year: "numeric",
     });
+  };
+
+  // Add close handler
+  const handleCloseModal = () => {
+    clearUser();
+    closeModal();
   };
 
   if (!selectedUser || modalType !== "openBuyer") return null;
@@ -132,7 +164,7 @@ const BuyerDetails = () => {
               <div className="flex items-center gap-4">
                 <button
                   title="Close modal"
-                  onClick={closeModal}
+                  onClick={handleCloseModal}
                   className="text-gray-500 hover:text-black"
                 >
                   <X size={18} />
@@ -512,7 +544,7 @@ const BuyerDetails = () => {
                     userName={displayUser.fullName}
                     userEmail={displayUser.email}
                     isActive={isActive}
-                    onSuccess={closeModal}
+                    onSuccess={handleCloseModal}
                     showHistoryButton={false}
                   />
                 </div>

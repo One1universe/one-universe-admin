@@ -6,6 +6,7 @@ import { FullUserType } from "@/store/userManagementStore";
 interface UserDetailsState {
   fullUser: FullUserType | null;
   loading: boolean;
+  currentUserId: string | null; // Track which user is loaded
   fetchUser: (userId: string, token: string) => Promise<void>;
   clearUser: () => void;
 }
@@ -13,6 +14,7 @@ interface UserDetailsState {
 export const userDetailsStore = create<UserDetailsState>((set) => ({
   fullUser: null,
   loading: false,
+  currentUserId: null,
 
   // Fetch user with booking stats
   fetchUser: async (userId, token) => {
@@ -50,15 +52,15 @@ export const userDetailsStore = create<UserDetailsState>((set) => ({
       console.log("✅ Normalized user data:", normalized);
       console.log("📊 Normalized bookingStats:", normalized.bookingStats);
 
-      set({ fullUser: normalized, loading: false });
+      set({ fullUser: normalized, loading: false, currentUserId: userId });
     } catch (err) {
       console.error("❌ Failed to fetch user:", err);
-      set({ fullUser: null, loading: false });
+      set({ fullUser: null, loading: false, currentUserId: null });
     }
   },
 
   clearUser: () => {
     console.log("🧹 Clearing user data");
-    set({ fullUser: null, loading: false });
+    set({ fullUser: null, loading: false, currentUserId: null });
   },
 }));

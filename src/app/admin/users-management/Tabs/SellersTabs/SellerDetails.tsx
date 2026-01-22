@@ -52,18 +52,44 @@ type VerificationDataType = {
 
 const SellerDetails = () => {
   const { modalType, selectedUser, closeModal } = userManagementStore();
-  const { fullUser, loading, fetchUser } = userDetailsStore();
+  const { fullUser, loading, fetchUser, clearUser } = userDetailsStore();
   const { data: session } = useSession();
   const [showHistory, setShowHistory] = useState(false);
   const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
   const [showPhotoComparison, setShowPhotoComparison] = useState(false);
 
+  // Fetch user when modal opens
   useEffect(() => {
     if (modalType === "openSeller" && selectedUser?.id && session?.accessToken) {
       console.log("🔍 Fetching full seller details for:", selectedUser.id);
       fetchUser(selectedUser.id, session.accessToken);
     }
   }, [modalType, selectedUser?.id, session?.accessToken, fetchUser]);
+
+  // Clear user when modal closes
+  useEffect(() => {
+    return () => {
+      if (modalType !== "openSeller") {
+        clearUser();
+      }
+    };
+  }, [modalType, clearUser]);
+
+  // Handle visibility change (tab switch)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && modalType === "openSeller") {
+        console.log("📵 Page hidden, closing seller modal");
+        clearUser();
+        closeModal();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [modalType, clearUser, closeModal]);
 
   const handleDownload = async (fileUrl: string) => {
     try {
@@ -99,6 +125,12 @@ const SellerDetails = () => {
     } finally {
       setDownloadingFile(null);
     }
+  };
+
+  // Add close handler
+  const handleCloseModal = () => {
+    clearUser();
+    closeModal();
   };
 
   if (!selectedUser || modalType !== "openSeller") return null;
@@ -151,7 +183,7 @@ const SellerDetails = () => {
               <div className="flex items-center gap-4">
                 <button
                   title="Close modal"
-                  onClick={closeModal}
+                  onClick={handleCloseModal}
                   className="text-gray-500 hover:text-black"
                 >
                   <X size={18} />
@@ -547,7 +579,7 @@ const SellerDetails = () => {
                     userName={displayUser.fullName}
                     userEmail={displayUser.email}
                     isActive={isActive}
-                    onSuccess={closeModal}
+                    onSuccess={handleCloseModal}
                     showHistoryButton={false}
                   />
                 </div>

@@ -1,16 +1,34 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { userManagementStore } from "@/store/userManagementStore";
+import { userDetailsStore } from "@/store/userDetailsStore";
 import UserManagementStatusBadge from "../../UserManagementStatusBadge";
 import { useSession } from "next-auth/react";
 import UserAdminActions from "../../components/UserAdminActions";
 
 const AdminDetails = () => {
   const { modalType, selectedUser, closeModal } = userManagementStore();
+  const { clearUser } = userDetailsStore();
   const { data: session } = useSession();
+
+  // Handle visibility change (tab switch)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && modalType === "openAdmin") {
+        console.log("📵 Page hidden, closing admin modal");
+        clearUser();
+        closeModal();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [modalType, clearUser, closeModal]);
 
   if (!selectedUser || modalType !== "openAdmin") return null;
 
@@ -20,6 +38,11 @@ const AdminDetails = () => {
   const getValidStatus = (status: string | undefined) => {
     const valid = ["ACTIVE", "INACTIVE", "PENDING", "VERIFIED", "UNVERIFIED", "DEACTIVATED"] as const;
     return status && valid.includes(status as any) ? (status as any) : "PENDING";
+  };
+
+  const handleCloseModal = () => {
+    clearUser();
+    closeModal();
   };
 
   return (
@@ -43,7 +66,7 @@ const AdminDetails = () => {
             <div className="flex rounded-t-2xl items-center justify-between bg-[#E8FBF7] pt-8 px-4 py-4">
               <div className="flex items-center gap-4">
                 <button
-                  onClick={closeModal}
+                  onClick={handleCloseModal}
                   className="text-gray-500 hover:text-black"
                 >
                   <X size={18} />
@@ -99,7 +122,7 @@ const AdminDetails = () => {
                 userName={selectedUser.fullName}
                 userEmail={selectedUser.email}
                 isActive={isActive}
-                onSuccess={closeModal}
+                onSuccess={handleCloseModal}
                 showHistoryButton={false}
               />
             </div>
