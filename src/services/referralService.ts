@@ -24,12 +24,12 @@ export interface ReferralItem {
     id: string;
     fullName: string;
     email: string;
-  };
+  } | null; // ✅ Made nullable
   referred: {
     id: string;
     fullName: string;
     email: string;
-  };
+  } | null; // ✅ Made nullable
   rewardTransaction: any;
   events: Array<{
     id: string;
@@ -56,7 +56,7 @@ export interface ReferralProgramSettings {
   platformFeePercentage: number;
   maxTransactionAmount: number | null;
   rewardEligibilityDays: number | null;
-  maxReferralsPerUserPerMonth: number | null; // ADDED: now properly typed
+  maxReferralsPerUserPerMonth: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -91,7 +91,8 @@ class ReferralService {
     }
 
     const fullUrl = `${baseUrl}${endpoint}`;
-    console.log("\nREQUEST START");
+    console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log("REQUEST START");
     console.log("Full URL:", fullUrl);
     console.log("Method:", options.method || "GET");
     console.log("Token exists:", !!session.accessToken);
@@ -113,7 +114,7 @@ class ReferralService {
       // Clone to read body for logging
       const clonedResponse = response.clone();
       const textData = await clonedResponse.text();
-      console.log("Raw Response Text:", textData.substring(0, 300));
+      console.log("Raw Response Text (first 300 chars):", textData.substring(0, 300));
 
       let data = {};
       try {
@@ -149,9 +150,11 @@ class ReferralService {
       }
 
       console.log("Request successful");
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
       return data;
     } catch (error) {
       console.error(`Request failed for ${endpoint}:`, error);
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
       throw error;
     }
   }
@@ -164,7 +167,16 @@ class ReferralService {
     console.log("Input - page:", page, "limit:", limit);
 
     const endpoint = `/referrals`;
-    return this.request(endpoint);
+    const response = await this.request(endpoint);
+
+    // ✅ Validate response structure
+    if (!response.items || !Array.isArray(response.items)) {
+      console.error("Invalid response structure:", response);
+      throw new Error("Invalid response: expected items array");
+    }
+
+    console.log(`Received ${response.items.length} referrals from API`);
+    return response;
   }
 
   /**
@@ -209,10 +221,10 @@ class ReferralService {
   }
 
   async getReferralSettingsById(settingsId: string): Promise<ReferralProgramSettings> {
-  console.log("\n=== getReferralSettingsById ===");
-  console.log("settingsId:", settingsId);
-  return this.request(`/referrals/settings/${encodeURIComponent(settingsId)}`);
-}
+    console.log("\n=== getReferralSettingsById ===");
+    console.log("settingsId:", settingsId);
+    return this.request(`/referrals/settings/${encodeURIComponent(settingsId)}`);
+  }
 
   /**
    * Mark referral as paid

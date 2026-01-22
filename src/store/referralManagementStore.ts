@@ -14,7 +14,6 @@ export interface ReferralFilterState {
   rewardPaid?: boolean;
 }
 
-// ✅ FIXED: Explicit Referral interface without extends
 export interface Referral {
   // Core properties from backend
   id: string;
@@ -22,8 +21,8 @@ export interface Referral {
   referredId: string;
   signupDate: string;
   firstTransactionAmount: string | null;
-  firstTransactionStatus: string | null; // ✅ CRITICAL: Must be explicitly here
-  status: "PENDING" | "PROCESSING" | "PAID" | "INELIGIBLE";
+  firstTransactionStatus: string | null;
+  status: ReferralStatus;
   rewardAmount: string | null;
   rewardPaidAt: string | null;
   rewardPaid: boolean;
@@ -32,18 +31,20 @@ export interface Referral {
   createdAt: string;
   updatedAt: string;
   referralCodeUsed: string | null;
-  
-  // Nested objects
+
+  // Nested objects – now nullable!
   referrer: {
     id: string;
     fullName: string;
     email: string;
-  };
+  } | null;
+
   referred: {
     id: string;
     fullName: string;
     email: string;
-  };
+  } | null;
+
   rewardTransaction: any;
   events: Array<{
     id: string;
@@ -52,75 +53,85 @@ export interface Referral {
     payload: Record<string, any>;
     createdAt: string;
   }>;
-  
-  // Computed/Display properties
+
+  // Computed / Display properties
   referrerName: string;
   referredName: string;
   signDate: string;
   rewardEarned: boolean;
 }
 
-// ✅ Helper function to transform ReferralItem to Referral
-const transformReferralItem = (item: ReferralItem): Referral => {
-  console.log("🔄 TRANSFORM DEBUG - Input item:", {
-    id: item.id.substring(0, 8) + '...',
-    referrer: item.referrer.fullName,
-    referred: item.referred.fullName,
-    firstTransactionAmount: item.firstTransactionAmount,
-    firstTransactionStatus: item.firstTransactionStatus,
-    allKeys: Object.keys(item).filter(k => k.includes('Transaction'))
-  });
+// Helper: Safe string fallback
+const getSafeName = (user: { fullName: string } | null | undefined): string =>
+  user?.fullName?.trim() || "—";
 
-  // ✅ EXPLICIT property mapping - every property listed
-  const transformed: Referral = {
-    // Core properties from backend
+// === Validation ===
+const isValidReferralItem = (item: any): item is ReferralItem => {
+  if (!item || typeof item !== "object") return false;
+
+  // Required fields
+  if (!item.id || typeof item.id !== "string") return false;
+  if (!item.referrerId || !item.referredId) return false;
+  if (!item.status || !["PENDING", "PROCESSING", "PAID", "INELIGIBLE"].includes(item.status)) {
+    return false;
+  }
+
+  // referrer and referred are allowed to be null now
+  // But if they exist, they must have the required fields
+  if (item.referrer && (!item.referrer.id || !item.referrer.fullName || !item.referrer.email)) {
+    return false;
+  }
+  if (item.referred && (!item.referred.id || !item.referred.fullName || !item.referred.email)) {
+    return false;
+  }
+
+  return true;
+};
+
+// === Transformation with null-safety ===
+const transformReferralItem = (item: ReferralItem): Referral => {
+  return {
+    // Core fields
     id: item.id,
     referrerId: item.referrerId,
     referredId: item.referredId,
     signupDate: item.signupDate,
     firstTransactionAmount: item.firstTransactionAmount,
-    firstTransactionStatus: item.firstTransactionStatus, // ✅ EXPLICITLY mapped
+    firstTransactionStatus: item.firstTransactionStatus,
     status: item.status,
     rewardAmount: item.rewardAmount,
     rewardPaidAt: item.rewardPaidAt,
-    rewardPaid: item.rewardPaid,
+    rewardPaid: !!item.rewardPaid,
     rewardTransactionId: item.rewardTransactionId,
     note: item.note,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
     referralCodeUsed: item.referralCodeUsed,
-    
-    // Nested objects
-    referrer: item.referrer,
-    referred: item.referred,
-    rewardTransaction: item.rewardTransaction,
-    events: item.events,
-    
-    // Computed/Display properties
-    referrerName: item.referrer.fullName,
-    referredName: item.referred.fullName,
-    signDate: new Date(item.signupDate).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    }),
-    rewardEarned: item.rewardPaid
+
+    // Nested objects – safe assignment
+    referrer: item.referrer ?? null,
+    referred: item.referred ?? null,
+
+    rewardTransaction: item.rewardTransaction ?? null,
+    events: Array.isArray(item.events) ? item.events : [],
+
+    // Computed fields with safe fallbacks
+    referrerName: getSafeName(item.referrer),
+    referredName: getSafeName(item.referred),
+    signDate: item.signupDate
+      ? new Date(item.signupDate).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })
+      : "—",
+    rewardEarned: !!item.rewardPaid,
   };
-
-  console.log("✅ TRANSFORM DEBUG - Output:", {
-    id: transformed.id.substring(0, 8) + '...',
-    firstTransactionStatus: transformed.firstTransactionStatus,
-    hasProperty: 'firstTransactionStatus' in transformed,
-    type: typeof transformed.firstTransactionStatus,
-    value: JSON.stringify(transformed.firstTransactionStatus)
-  });
-
-  return transformed;
 };
 
 // === Store ===
 interface ReferralManagementState {
-  // Referrals list state
+  // Referrals list
   allReferrals: Referral[];
   allReferralsLoading: boolean;
   allReferralsError: string | null;
@@ -130,20 +141,20 @@ interface ReferralManagementState {
     limit: number;
   } | null;
 
-  // Stats state
+  // Stats
   stats: ReferralStats | null;
   statsLoading: boolean;
   statsError: string | null;
 
-  // Settings state
+  // Settings
   settings: ReferralProgramSettings | null;
   settingsLoading: boolean;
   settingsError: string | null;
 
-  // Selected referral
+  // Selected
   selectedReferral: Referral | null;
 
-  // UI state
+  // UI
   searchQuery: string;
   filters: ReferralFilterState;
 
@@ -152,23 +163,18 @@ interface ReferralManagementState {
   fetchStats: () => Promise<void>;
   fetchSettings: () => Promise<void>;
   fetchReferralDetails: (referralId: string) => Promise<void>;
-  
+
   resolveReferral: (
     referralId: string,
     status: "PAID" | "INELIGIBLE",
     data?: { rewardAmount?: number; rewardTransactionId?: string; reason?: string }
   ) => Promise<void>;
-  
-  markAsPaid: (
-    referralId: string,
-    rewardTransactionId: string,
-    rewardAmount: number
-  ) => Promise<void>;
-  
+
+  markAsPaid: (referralId: string, rewardTransactionId: string, rewardAmount: number) => Promise<void>;
   markAsIneligible: (referralId: string, reason?: string) => Promise<void>;
-  
+
   updateSettings: (settings: any) => Promise<void>;
-  
+
   setSelectedReferral: (referral: Referral | null) => void;
   setSearchQuery: (query: string) => void;
   setFilters: (filters: ReferralFilterState) => void;
@@ -201,38 +207,32 @@ export const referralManagementStore = create<ReferralManagementState>((set) => 
     set({ allReferralsLoading: true, allReferralsError: null });
 
     try {
-      console.log(`\n📦 Store: fetchAllReferrals called with page=${page}, limit=${limit}`);
-
       const response = await referralService.getAllReferrals(page, limit);
 
-      console.log("📦 RAW BACKEND RESPONSE:", {
-        totalItems: response.items.length,
-        firstItem: response.items[0],
-        firstItemTransactionStatus: response.items[0]?.firstTransactionStatus
-      });
+      if (!response?.items || !Array.isArray(response.items)) {
+        throw new Error("Invalid response: missing items array");
+      }
 
-      // ✅ Transform ReferralItem[] to Referral[] with computed properties
-      const transformedReferrals = response.items.map(transformReferralItem);
+      const transformedReferrals = response.items
+        .filter(isValidReferralItem)
+        .map(transformReferralItem);
 
-      console.log("✅ TRANSFORMED REFERRALS:", {
-        totalItems: transformedReferrals.length,
-        firstItem: transformedReferrals[0],
-        firstItemTransactionStatus: transformedReferrals[0]?.firstTransactionStatus
-      });
+      let errorMessage: string | null = null;
+      if (transformedReferrals.length === 0 && response.items.length > 0) {
+        errorMessage = "No valid referrals could be loaded (data missing or invalid)";
+      }
 
       set({
         allReferrals: transformedReferrals,
         allReferralsMeta: {
-          total: response.total,
-          page: response.page,
-          limit: response.limit,
+          total: response.total ?? 0,
+          page: response.page ?? page,
+          limit: response.limit ?? limit,
         },
-        allReferralsError: null,
+        allReferralsError: errorMessage,
       });
-
-      console.log(`✅ Store: Fetched ${transformedReferrals.length} referrals and stored in state`);
     } catch (err: any) {
-      console.error("❌ Store: Failed to fetch referrals:", err);
+      console.error("Failed to fetch referrals:", err);
       set({
         allReferrals: [],
         allReferralsMeta: null,
@@ -245,21 +245,11 @@ export const referralManagementStore = create<ReferralManagementState>((set) => 
 
   fetchStats: async () => {
     set({ statsLoading: true, statsError: null });
-
     try {
-      console.log("\n📦 Store: fetchStats called");
-      const response = await referralService.getReferralStats();
-      set({
-        stats: response,
-        statsError: null,
-      });
-      console.log("✅ Store: Stats fetched");
+      const stats = await referralService.getReferralStats();
+      set({ stats, statsError: null });
     } catch (err: any) {
-      console.error("❌ Store: Failed to fetch stats:", err);
-      set({
-        stats: null,
-        statsError: err.message || "Failed to load stats",
-      });
+      set({ stats: null, statsError: err.message || "Failed to load stats" });
     } finally {
       set({ statsLoading: false });
     }
@@ -267,21 +257,11 @@ export const referralManagementStore = create<ReferralManagementState>((set) => 
 
   fetchSettings: async () => {
     set({ settingsLoading: true, settingsError: null });
-
     try {
-      console.log("\n📦 Store: fetchSettings called");
-      const response = await referralService.getReferralSettings();
-      set({
-        settings: response,
-        settingsError: null,
-      });
-      console.log("✅ Store: Settings fetched");
+      const settings = await referralService.getReferralSettings();
+      set({ settings, settingsError: null });
     } catch (err: any) {
-      console.error("❌ Store: Failed to fetch settings:", err);
-      set({
-        settings: null,
-        settingsError: err.message || "Failed to load settings",
-      });
+      set({ settings: null, settingsError: err.message || "Failed to load settings" });
     } finally {
       set({ settingsLoading: false });
     }
@@ -289,21 +269,20 @@ export const referralManagementStore = create<ReferralManagementState>((set) => 
 
   fetchReferralDetails: async (referralId: string) => {
     set({ allReferralsLoading: true, allReferralsError: null });
-
     try {
-      console.log(`\n📦 Store: fetchReferralDetails called for ${referralId}`);
       const response = await referralService.getReferralDetails(referralId);
-      
-      // ✅ Transform ReferralItem to Referral
-      const transformedReferral = transformReferralItem(response);
-      
+
+      if (!isValidReferralItem(response)) {
+        throw new Error("Referral data is invalid or incomplete");
+      }
+
+      const transformed = transformReferralItem(response);
+
       set({
-        selectedReferral: transformedReferral,
+        selectedReferral: transformed,
         allReferralsError: null,
       });
-      console.log("✅ Store: Referral details fetched");
     } catch (err: any) {
-      console.error("❌ Store: Failed to fetch referral details:", err);
       set({
         selectedReferral: null,
         allReferralsError: err.message || "Failed to load referral details",
@@ -315,10 +294,7 @@ export const referralManagementStore = create<ReferralManagementState>((set) => 
 
   resolveReferral: async (referralId, status, data) => {
     set({ allReferralsLoading: true, allReferralsError: null });
-
     try {
-      console.log(`\n📦 Store: resolveReferral - ${referralId} as ${status}`);
-
       let response: ReferralItem;
 
       if (status === "PAID") {
@@ -328,29 +304,24 @@ export const referralManagementStore = create<ReferralManagementState>((set) => 
           data?.rewardAmount || 0
         );
       } else {
-        response = await referralService.markAsIneligible(
-          referralId,
-          data?.reason
-        );
+        response = await referralService.markAsIneligible(referralId, data?.reason);
       }
 
-      // ✅ Transform response
-      const transformedResponse = transformReferralItem(response);
+      if (!isValidReferralItem(response)) {
+        throw new Error("Resolved referral has invalid data");
+      }
+
+      const transformed = transformReferralItem(response);
 
       set((state) => ({
-        selectedReferral: transformedResponse,
+        selectedReferral: transformed,
         allReferrals: state.allReferrals.map((ref) =>
-          ref.id === referralId ? transformedResponse : ref
+          ref.id === referralId ? transformed : ref
         ),
         allReferralsError: null,
       }));
-
-      console.log("✅ Store: Referral resolved");
     } catch (err: any) {
-      console.error("❌ Store: Failed to resolve referral:", err);
-      set({
-        allReferralsError: err.message || "Failed to resolve referral",
-      });
+      set({ allReferralsError: err.message || "Failed to resolve referral" });
       throw err;
     } finally {
       set({ allReferralsLoading: false });
@@ -359,43 +330,32 @@ export const referralManagementStore = create<ReferralManagementState>((set) => 
 
   markAsPaid: async (referralId, rewardTransactionId, rewardAmount) => {
     set({ allReferralsLoading: true, allReferralsError: null });
-
     try {
-      console.log(
-        `\n📦 Store: markAsPaid - ${referralId} with amount ${rewardAmount}`
-      );
-
       const response = await referralService.markAsPaid(
         referralId,
         rewardTransactionId,
         rewardAmount
       );
 
-      // ✅ Transform response
-      const transformedResponse = transformReferralItem(response);
+      if (!isValidReferralItem(response)) {
+        throw new Error("Paid referral has invalid data");
+      }
+
+      const transformed = transformReferralItem(response);
 
       set((state) => ({
-        selectedReferral: transformedResponse,
+        selectedReferral: transformed,
         allReferrals: state.allReferrals.map((ref) =>
-          ref.id === referralId ? transformedResponse : ref
+          ref.id === referralId ? transformed : ref
         ),
         allReferralsError: null,
       }));
 
-      console.log("✅ Store: Marked as paid");
-
       // Refresh stats
-      try {
-        const stats = await referralService.getReferralStats();
-        set({ stats });
-      } catch (statsErr) {
-        console.warn("⚠️ Store: Failed to refresh stats:", statsErr);
-      }
+      const stats = await referralService.getReferralStats().catch(() => null);
+      if (stats) set({ stats });
     } catch (err: any) {
-      console.error("❌ Store: Failed to mark as paid:", err);
-      set({
-        allReferralsError: err.message || "Failed to mark as paid",
-      });
+      set({ allReferralsError: err.message || "Failed to mark as paid" });
       throw err;
     } finally {
       set({ allReferralsLoading: false });
@@ -404,29 +364,24 @@ export const referralManagementStore = create<ReferralManagementState>((set) => 
 
   markAsIneligible: async (referralId, reason) => {
     set({ allReferralsLoading: true, allReferralsError: null });
-
     try {
-      console.log(`\n📦 Store: markAsIneligible - ${referralId}`);
-
       const response = await referralService.markAsIneligible(referralId, reason);
 
-      // ✅ Transform response
-      const transformedResponse = transformReferralItem(response);
+      if (!isValidReferralItem(response)) {
+        throw new Error("Ineligible referral has invalid data");
+      }
+
+      const transformed = transformReferralItem(response);
 
       set((state) => ({
-        selectedReferral: transformedResponse,
+        selectedReferral: transformed,
         allReferrals: state.allReferrals.map((ref) =>
-          ref.id === referralId ? transformedResponse : ref
+          ref.id === referralId ? transformed : ref
         ),
         allReferralsError: null,
       }));
-
-      console.log("✅ Store: Marked as ineligible");
     } catch (err: any) {
-      console.error("❌ Store: Failed to mark as ineligible:", err);
-      set({
-        allReferralsError: err.message || "Failed to mark as ineligible",
-      });
+      set({ allReferralsError: err.message || "Failed to mark as ineligible" });
       throw err;
     } finally {
       set({ allReferralsLoading: false });
@@ -435,23 +390,11 @@ export const referralManagementStore = create<ReferralManagementState>((set) => 
 
   updateSettings: async (settings: any) => {
     set({ settingsLoading: true, settingsError: null });
-
     try {
-      console.log("\n📦 Store: updateSettings - calling POST /referrals/upsert", settings);
-
-      const response = await referralService.updateSettings(settings);
-
-      set({
-        settings: response,
-        settingsError: null,
-      });
-
-      console.log(`✅ Store: Settings updated:`, response);
+      const updated = await referralService.updateSettings(settings);
+      set({ settings: updated, settingsError: null });
     } catch (err: any) {
-      console.error("❌ Store: Failed to update settings:", err);
-      set({
-        settingsError: err.message || "Failed to update settings",
-      });
+      set({ settingsError: err.message || "Failed to update settings" });
       throw err;
     } finally {
       set({ settingsLoading: false });
