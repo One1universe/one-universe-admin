@@ -19,7 +19,7 @@ const statusConfig = {
 };
 
 const bookingStatusConfig = {
-  BUYER_CONFIRM_COMPLETION: { bg: "bg-[#E5F3FF]", text: "text-[#0066CC]", label: "In Progress" },
+  BUYER_CONFIRM_COMPLETION: { bg: "bg-[#D7FFE9]", text: "text-[#1FC16B]", label: "Completed" }, // ✅ FIXED
   SELLER_CONFIRM_COMPLETION: { bg: "bg-[#E5F3FF]", text: "text-[#0066CC]", label: "In Progress" },
   COMPLETED: { bg: "bg-[#D7FFE9]", text: "text-[#1FC16B]", label: "Completed" },
   CANCELLED: { bg: "bg-[#FFF2B9]", text: "text-[#9D7F04]", label: "Cancelled" },
