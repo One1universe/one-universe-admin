@@ -5,7 +5,7 @@ import { X, User, Mail, Calendar, Briefcase, MapPin } from "lucide-react";
 interface PaymentDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  payment: any;
+  payment: any; // From DetailedTransaction type
   isLoading?: boolean;
 }
 
@@ -32,6 +32,7 @@ const jobStatusConfig = {
   IN_PROGRESS: { bg: "bg-[#E5F3FF]", text: "text-[#0066CC]", label: "In Progress" },
   PENDING: { bg: "bg-[#FFF4D6]", text: "text-[#F59E0B]", label: "Pending" },
   CANCELLED: { bg: "bg-[#FFF2B9]", text: "text-[#9D7F04]", label: "Cancelled" },
+  DISPUTED: { bg: "bg-[#FDEDED]", text: "text-[#D00416]", label: "Disputed" },
 };
 
 export default function PaymentDetailsModal({
@@ -56,7 +57,25 @@ export default function PaymentDetailsModal({
   }
 
   if (!payment) {
-    return null;
+    return (
+      <>
+        <div className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm" onClick={onClose} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-[775px] max-h-[90vh] overflow-y-auto p-8 text-center">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Transaction Details Not Found</h3>
+            <p className="text-gray-600 mb-6">
+              The transaction details could not be found in the user's history. This might be a system-generated transaction or data is missing.
+            </p>
+            <button
+              onClick={onClose}
+              className="px-6 py-2 bg-[#04171F] text-white rounded-lg hover:bg-[#04171F]/90 transition"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </>
+    );
   }
 
   // Get status styles
@@ -65,7 +84,7 @@ export default function PaymentDetailsModal({
   const jobStyle = jobStatusConfig[payment.jobStatus as keyof typeof jobStatusConfig] || jobStatusConfig.PENDING;
 
   // Format date
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | Date | null) => {
     if (!dateString) return "N/A";
     try {
       return new Date(dateString).toLocaleDateString('en-US', {
@@ -85,6 +104,9 @@ export default function PaymentDetailsModal({
     if (typeof amount !== 'number' || isNaN(amount)) return "0.00";
     return amount.toFixed(2);
   };
+
+  // Check if it's a booking-related transaction
+  const isBookingTransaction = !!payment.bookingId || !!payment.serviceTitle;
 
   return (
     <>
@@ -147,13 +169,13 @@ export default function PaymentDetailsModal({
                   <div className="flex items-center gap-8">
                     <p className="font-dm-sans font-medium text-base text-[#171417] w-16">Name</p>
                     <p className="font-dm-sans font-medium text-base text-[#454345]">
-                      {payment.sellerName || "N/A"}
+                      {payment.sellerName || payment.userName || "N/A"}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <p className="font-dm-sans font-medium text-base text-[#171417] w-16">Email</p>
                     <Mail size={20} className="text-[#454345]" />
-                    <p className="text-base text-[#454345]">{payment.sellerEmail || "N/A"}</p>
+                    <p className="text-base text-[#454345]">{payment.sellerEmail || payment.userEmail || "N/A"}</p>
                   </div>
                 </div>
               </div>
@@ -161,36 +183,49 @@ export default function PaymentDetailsModal({
 
             <div className="h-px bg-[#B5B1B1]" />
 
-            {/* Job Details */}
+            {/* Job / Transaction Details */}
             <div className="space-y-4 px-6">
               <div className="flex items-center gap-2">
                 <Briefcase size={20} className="text-[#454345]" />
                 <h3 className="font-dm-sans font-bold text-base text-[#646264]">
-                  Job Details
+                  {isBookingTransaction ? "Job Details" : "Transaction Details"}
                 </h3>
               </div>
 
               <div className="space-y-4">
+                {isBookingTransaction && (
+                  <>
+                    <div className="flex items-center gap-8">
+                      <p className="font-dm-sans font-medium text-base text-[#171417] w-32">Booking ID</p>
+                      <p className="font-dm-sans font-medium text-base text-[#171417]">
+                        {payment.bookingId || "N/A"}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-8">
+                      <p className="font-dm-sans font-medium text-base text-[#171417] w-32">Booking Status</p>
+                      <span
+                        className={`inline-flex px-2 py-1 rounded-lg text-sm font-normal ${bookingStyle.bg} ${bookingStyle.text}`}
+                      >
+                        {bookingStyle.label}
+                      </span>
+                    </div>
+                  </>
+                )}
+
                 <div className="flex items-center gap-8">
-                  <p className="font-dm-sans font-medium text-base text-[#171417] w-32">Booking ID</p>
-                  <p className="font-dm-sans font-medium text-base text-[#171417]">
-                    {payment.bookingId || "N/A"}
-                  </p>
-                </div>
-                
-                <div className="flex items-center gap-8">
-                  <p className="font-dm-sans font-medium text-base text-[#171417] w-32">Booking Status</p>
+                  <p className="font-dm-sans font-medium text-base text-[#171417] w-32">Job Status</p>
                   <span
-                    className={`inline-flex px-2 py-1 rounded-lg text-sm font-normal ${bookingStyle.bg} ${bookingStyle.text}`}
+                    className={`inline-flex px-2 py-1 rounded-lg text-sm font-normal ${jobStyle.bg} ${jobStyle.text}`}
                   >
-                    {bookingStyle.label}
+                    {jobStyle.label}
                   </span>
                 </div>
 
                 <div className="flex items-start gap-8">
                   <div className="w-32">
                     <p className="font-dm-sans font-medium text-base text-[#171417]">Business Name</p>
-                    <p className="font-dm-sans font-medium text-base text-[#171417] mt-4">Services</p>
+                    <p className="font-dm-sans font-medium text-base text-[#171417] mt-4">Service</p>
                     <p className="font-dm-sans font-medium text-base text-[#171417] mt-4">Location</p>
                   </div>
                   <div className="space-y-4">
@@ -206,20 +241,12 @@ export default function PaymentDetailsModal({
                     </p>
                   </div>
                 </div>
-                
-                <div className="flex items-center gap-8">
-                  <p className="font-dm-sans font-medium text-base text-[#171417] w-32">Job Status</p>
-                  <span
-                    className={`inline-flex px-2 py-1 rounded-lg text-sm font-normal ${jobStyle.bg} ${jobStyle.text}`}
-                  >
-                    {jobStyle.label}
-                  </span>
-                </div>
-                
+
                 <div className="flex items-center gap-2">
                   <Calendar size={16} className="text-[#D00416]" />
                   <p className="font-dm-sans font-normal text-base text-[#454345]">
-                    <span className="font-medium text-[#171417]">Date:</span> {formatDate(payment.bookingDate)}
+                    <span className="font-medium text-[#171417]">Date:</span>{" "}
+                    {formatDate(payment.bookingDate || payment.createdAt)}
                   </p>
                 </div>
               </div>
@@ -234,7 +261,7 @@ export default function PaymentDetailsModal({
               </h3>
               <div className="flex justify-between items-center">
                 <p className="font-dm-sans font-medium text-base text-[#171417]">
-                  Service Fee Amount
+                  Amount
                 </p>
                 <div className="flex items-center gap-4">
                   <span
@@ -243,7 +270,7 @@ export default function PaymentDetailsModal({
                     {statusStyle.label}
                   </span>
                   <p className="font-normal text-base text-right text-[#454345]">
-                    NGN{formatAmount(payment.amount)}
+                    NGN {formatAmount(payment.amount)}
                   </p>
                 </div>
               </div>

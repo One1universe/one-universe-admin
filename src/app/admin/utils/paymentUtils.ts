@@ -1,33 +1,57 @@
 // src/utils/paymentUtils.ts
 
-import { BaseTransaction, PaymentFilterState } from "@/store/paymentManagementStore";
+import { Payment, PaymentFilterState } from "@/store/paymentManagementStore";
 
 export const filterPayments = (
-  payments: BaseTransaction[],
+  payments: Payment[],
   filters: PaymentFilterState,
   searchQuery: string
-): BaseTransaction[] => {
+): Payment[] => {
   let filtered = [...payments];
 
+  // Search filter
   if (searchQuery) {
-    const query = searchQuery.toLowerCase();
-    filtered = filtered.filter(
-      (p) =>
-        p.reference?.toLowerCase().includes(query) ||
-        p.serviceTitle?.toLowerCase().includes(query) ||
-        p.buyerName?.toLowerCase().includes(query) ||
-        p.sellerName?.toLowerCase().includes(query)
+    const query = searchQuery.toLowerCase().trim();
+    filtered = filtered.filter((p) =>
+      p.id?.toLowerCase().includes(query) ||
+      p.serviceTitle?.toLowerCase().includes(query) ||
+      p.userName?.toLowerCase().includes(query) ||
+      p.userEmail?.toLowerCase().includes(query) ||
+      p.userPhone?.toLowerCase().includes(query)
     );
   }
 
-  if (filters.status) filtered = filtered.filter((p) => p.status === filters.status);
-  if (filters.fromDate) filtered = filtered.filter((p) => new Date(p.createdAt) >= filters.fromDate!);
-  if (filters.toDate) filtered = filtered.filter((p) => new Date(p.createdAt) <= filters.toDate!);
-  if (filters.minAmount !== undefined) filtered = filtered.filter((p) => p.amount >= filters.minAmount!);
-  if (filters.maxAmount !== undefined) filtered = filtered.filter((p) => p.amount <= filters.maxAmount!);
+  // Status filter
+  if (filters.status) {
+    filtered = filtered.filter((p) => p.status === filters.status);
+  }
+
+  // Date range
+  if (filters.fromDate) {
+    filtered = filtered.filter(
+      (p) => new Date(p.createdAt) >= filters.fromDate!
+    );
+  }
+  if (filters.toDate) {
+    filtered = filtered.filter(
+      (p) => new Date(p.createdAt) <= filters.toDate!
+    );
+  }
+
+  // Amount range
+  if (filters.minAmount !== undefined) {
+    filtered = filtered.filter((p) => p.amount >= filters.minAmount!);
+  }
+  if (filters.maxAmount !== undefined) {
+    filtered = filtered.filter((p) => p.amount <= filters.maxAmount!);
+  }
+
+  // User type filter – safe check for undefined
   if (filters.userType) {
     filtered = filtered.filter(
-      (p) => p.buyerRole === filters.userType || p.sellerRole === filters.userType
+      (p) =>
+        p.displayAs === filters.userType ||
+        p.role.toLowerCase().includes(filters.userType!.toLowerCase())
     );
   }
 
@@ -42,8 +66,7 @@ export const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
-// FINAL PERFECT DATE — short, clean, never wraps
-export const formatDate = (dateString: string): string => {
+export const formatDate = (dateString: string | Date): string => {
   if (!dateString) return "N/A";
 
   const date = new Date(dateString);
