@@ -6,10 +6,10 @@ import PaymentTable, { Payment } from "./Details/PaymentTable";
 import EmptyPaymentManagement from "./EmptyPaymentManagement";
 import NoPaymentManagement from "./NoPaymentManagement";
 import PaymentFilters from "./Filters/PaymentFilters";
-import ExportModal from "./Details/ExportModal"; // ← Your existing modal
+import ExportModal from "./Details/ExportModal";
 import Pagination from "@/components/ui/Pagination";
 import { paymentManagementStore } from "@/store/paymentManagementStore";
-import { filterPayments, formatCurrency, formatDate } from "../utils/paymentUtils";
+import { filterPayments } from "../utils/paymentUtils"; // ← Remove formatCurrency/formatDate if not used
 
 // Export libraries
 import { saveAs } from "file-saver";
@@ -37,21 +37,12 @@ const PaymentManagementPage = () => {
 
   useEffect(() => {
     fetchAllPayments(currentPage, itemsPerPage);
-  }, [currentPage]);
+  }, [currentPage, fetchAllPayments]);
 
   const filteredPayments = filterPayments(allPayments, filters, searchQuery);
 
-  const transformedPayments: Payment[] = filteredPayments.map((payment) => ({
-    id: payment.reference,
-    serviceTitle: payment.serviceTitle || "N/A",
-    buyer: payment.buyerName || "N/A",
-    seller: payment.sellerName || "N/A",
-    totalAmount: formatCurrency(payment.amount),
-    status: payment.status,
-    date: formatDate(payment.createdAt),
-    buyerUserId: payment.buyerUserId || null,
-    sellerUserId: payment.sellerUserId || null,
-  }));
+  // No need for transformation anymore — allPayments is already normalized!
+  const transformedPayments: Payment[] = filteredPayments;
 
   const hasPayments = allPayments.length > 0;
   const hasResults = transformedPayments.length > 0;
@@ -68,21 +59,31 @@ const PaymentManagementPage = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // EXPORT FUNCTION
+  // EXPORT FUNCTION — updated to use new Payment fields
   const handleExport = (format: "csv" | "pdf") => {
     const data = transformedPayments.map((p) => ({
       "Payment ID": p.id,
-      "Service Title": p.serviceTitle,
-      Buyer: p.buyer,
-      Seller: p.seller,
-      Amount: p.totalAmount,
-      Status:
+      "Type": p.type,
+      "User": p.userName,
+      "Role": `${p.role} (${p.displayAs})`,
+      "Service Title": p.serviceTitle || "—",
+      "Amount": new Intl.NumberFormat("en-NG", {
+        style: "currency",
+        currency: "NGN",
+      }).format(p.amount),
+      "Status":
         p.status === "PAID" ? "Paid" :
         p.status === "PENDING" ? "Pending" :
         p.status === "DISPUTED" ? "Disputed" :
         p.status === "PENDING REFUND" ? "Pending Refund" :
         p.status === "REFUNDED" ? "Refunded" : "Failed",
-      Date: p.date,
+      "Date": new Date(p.createdAt).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     }));
 
     const filename = `payments_${new Date().toISOString().split("T")[0]}`;
@@ -101,7 +102,7 @@ const PaymentManagementPage = () => {
       doc.setFontSize(20);
       doc.text("Payment Records", 14, 22);
       autoTable(doc, {
-        head: [["Payment ID", "Service Title", "Buyer", "Seller", "Amount", "Status", "Date"]],
+        head: [["Payment ID", "Type", "User", "Role", "Service Title", "Amount", "Status", "Date"]],
         body: data.map(row => Object.values(row)),
         startY: 30,
         theme: "grid",
@@ -123,11 +124,10 @@ const PaymentManagementPage = () => {
               Payment Management
             </h1>
             <p className="font-dm-sans text-base leading-[140%] text-[#6B6969] max-w-[429px]">
-              Oversee all payouts and refunds to ensure sellers are paid
+              Oversee all payouts, refunds, deposits, withdrawals and more
             </p>
           </div>
 
-          {/* EXPORT BUTTON */}
           <button
             onClick={() => setShowExportModal(true)}
             className="flex items-center gap-2 h-12 px-6 bg-gradient-to-r from-[#154751] to-[#04171F] text-white font-dm-sans font-medium text-base rounded-[20px] hover:opacity-90 transition"
@@ -144,12 +144,12 @@ const PaymentManagementPage = () => {
             </h2>
           </div>
 
-          {/* Search + Filter Button */}
+          {/* Search + Filter */}
           <div className="px-6 py-5 flex flex-col sm:flex-row gap-4 items-center justify-between">
             <div className="relative w-full sm:w-[532px]">
               <input
                 type="text"
-                placeholder="Search by Payment ID, Buyer/Seller Name, or Service Title..."
+                placeholder="Search by Payment ID, User Name, Email, Service Title..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full h-12 pl-12 pr-4 border border-[#B7B6B7] rounded-lg text-base font-inter placeholder-[#7B7B7B] focus:outline-none focus:border-[#04171F] transition"
@@ -182,14 +182,14 @@ const PaymentManagementPage = () => {
             </button>
           </div>
 
-          {/* Error Message */}
+          {/* Error */}
           {allPaymentsError && (
             <div className="mx-6 mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-red-600 text-sm font-medium">{allPaymentsError}</p>
             </div>
           )}
 
-          {/* Table Content */}
+          {/* Table / Loading / Empty */}
           <div className="min-h-[480px]">
             {allPaymentsLoading ? (
               <div className="p-8 space-y-3">
@@ -227,7 +227,7 @@ const PaymentManagementPage = () => {
         </section>
       </main>
 
-      {/* FILTER DROPDOWN */}
+      {/* Filters Modal */}
       {showFilter && (
         <div
           className="fixed inset-0 z-[9999] bg-black/30"
@@ -242,7 +242,7 @@ const PaymentManagementPage = () => {
         </div>
       )}
 
-      {/* EXPORT MODAL — YOUR EXISTING ONE */}
+      {/* Export Modal */}
       <ExportModal
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}

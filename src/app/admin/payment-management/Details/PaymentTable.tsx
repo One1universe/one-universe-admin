@@ -7,17 +7,20 @@ import { cn } from "@/lib/utils";
 import PaymentDetailsModal from "./PaymentDetailsModal";
 import { paymentService } from "@/services/paymentService";
 
-// Shared type — used by both table and page
+// Updated Payment type based on new backend response
 export type Payment = {
-  id: string;
-  serviceTitle: string;
-  buyer: string;
-  seller: string;
-  totalAmount: string;
+  id: string;                   // reference
+  serviceTitle: string | null;
+  userName: string;             // fullName or "—"
+  userEmail: string;            // email or "—"
+  userPhone: string;            // phone or "—"
+  userId?: string | null;
+  displayAs: "BUYER" | "SELLER" | "USER" | "SYSTEM";
+  role: string;                 // e.g. "Buyer", "Seller", "Wallet Owner (Deposit)"
+  amount: number;
+  type: string;                 // DEPOSIT, WITHDRAWAL, PAYMENT, REFERRAL, etc.
   status: "PAID" | "PENDING" | "DISPUTED" | "PENDING REFUND" | "REFUNDED" | "FAILED";
-  date: string;
-  buyerUserId?: string | null;
-  sellerUserId?: string | null;
+  createdAt: string | Date;
 };
 
 interface PaymentTableProps {
@@ -25,12 +28,22 @@ interface PaymentTableProps {
 }
 
 const statusConfig = {
-  PAID: { label: "Paid", color: "bg-[#D7FFE9] text-[#1FC16B]" },
-  PENDING: { label: "Pending", color: "bg-[#FFF4D6] text-[#F59E0B]" },
-  DISPUTED: { label: "Disputed", color: "bg-[#FDEDED] text-[#D00416]" },
-  "PENDING REFUND": { label: "Pending Refund", color: "bg-[#E5E5FF] text-[#6366F1]" },
-  REFUNDED: { label: "Refunded", color: "bg-[#E0E0E0] text-[#525252]" },
-  FAILED: { label: "Failed", color: "bg-[#FDEDED] text-[#D00416]" },
+  PAID: { label: "Paid", color: "bg-[#D7FFE9] text-[#1FC16B] border border-[#A3E9C9]" },
+  PENDING: { label: "Pending", color: "bg-[#FFF4D6] text-[#F59E0B] border border-[#FFE8A3]" },
+  DISPUTED: { label: "Disputed", color: "bg-[#FDEDED] text-[#D00416] border border-[#F9B7B7]" },
+  "PENDING REFUND": { label: "Pending Refund", color: "bg-[#E5E5FF] text-[#6366F1] border border-[#C7C7FF]" },
+  REFUNDED: { label: "Refunded", color: "bg-[#E0E0E0] text-[#525252] border border-[#BFBFBF]" },
+  FAILED: { label: "Failed", color: "bg-[#FDEDED] text-[#D00416] border border-[#F9B7B7] font-semibold" },
+};
+
+const typeConfig: Record<string, { label: string; color: string }> = {
+  DEPOSIT: { label: "Deposit", color: "text-green-600" },
+  WITHDRAWAL: { label: "Withdrawal", color: "text-red-600" },
+  PAYMENT: { label: "Payment", color: "text-blue-600" },
+  REFERRAL: { label: "Referral Reward", color: "text-purple-600" },
+  SUBSCRIPTION: { label: "Subscription", color: "text-indigo-600" },
+  REFUND: { label: "Refund", color: "text-orange-600" },
+  // Add more types as needed
 };
 
 export default function PaymentTable({ data }: PaymentTableProps) {
@@ -38,9 +51,10 @@ export default function PaymentTable({ data }: PaymentTableProps) {
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
   const handleOpenDetails = async (payment: Payment) => {
-    const userId = payment.buyerUserId || payment.sellerUserId;
-    if (!userId) {
-      alert("Cannot load details: Missing user information");
+    if (!payment.userId) {
+      alert(
+        "Cannot view details: No user information is available for this transaction. This might be a system-generated transaction."
+      );
       return;
     }
 
@@ -48,21 +62,21 @@ export default function PaymentTable({ data }: PaymentTableProps) {
     setSelectedPaymentDetails(null);
 
     try {
-      const response = await paymentService.getUserTransactionHistory(userId);
+      const response = await paymentService.getUserTransactionHistory(payment.userId);
 
       if (response.status === "success" && Array.isArray(response.data)) {
         const match = response.data.find((tx: any) => tx.reference === payment.id);
         if (match) {
           setSelectedPaymentDetails(match);
         } else {
-          alert("Transaction not found in user's history");
+          alert("Transaction details not found in user's history.");
         }
       } else {
-        alert("Failed to load transaction details");
+        alert("Failed to load transaction details from the server.");
       }
     } catch (error) {
-      // console.error("Error loading payment details:", error);
-      alert("Failed to load payment details");
+      console.error("Error loading payment details:", error);
+      alert("Failed to load transaction details. Please try again later.");
     } finally {
       setIsLoadingDetails(false);
     }
@@ -77,10 +91,10 @@ export default function PaymentTable({ data }: PaymentTableProps) {
         <table className="w-full text-left">
           <thead>
             <tr className="border-b border-[#E8E3E3] text-[#646264] text-sm font-medium">
-              <th className="py-4 px-6">Payment ID</th>
-              <th className="py-4 px-6">Service Title</th>
-              <th className="py-4 px-6">Buyer</th>
-              <th className="py-4 px-6">Seller</th>
+              <th className="py-4 px-6">Reference</th>
+              <th className="py-4 px-6">Type</th>
+              <th className="py-4 px-6">User</th>
+              <th className="py-4 px-6">Service</th>
               <th className="py-4 px-6">Amount</th>
               <th className="py-4 px-6">Status</th>
               <th className="py-4 px-6 min-w-[170px]">Date</th>
@@ -89,7 +103,9 @@ export default function PaymentTable({ data }: PaymentTableProps) {
           </thead>
           <tbody>
             {data.map((payment) => {
-              const status = statusConfig[payment.status];
+              const status = statusConfig[payment.status] || { label: payment.status, color: "bg-gray-100 text-gray-800" };
+              const txType = typeConfig[payment.type] || { label: payment.type || "Other", color: "text-gray-600" };
+
               return (
                 <tr
                   key={payment.id}
@@ -98,12 +114,33 @@ export default function PaymentTable({ data }: PaymentTableProps) {
                   <td className="py-5 px-6 text-sm font-medium text-[#171417] break-all">
                     {payment.id}
                   </td>
-                  <td className="py-5 px-6 text-[#303237] line-clamp-2 max-w-[200px]">
-                    {payment.serviceTitle || "N/A"}
+                  <td className="py-5 px-6">
+                    <span className={cn("font-medium", txType.color)}>
+                      {txType.label}
+                    </span>
                   </td>
-                  <td className="py-5 px-6 text-[#303237]">{payment.buyer || "N/A"}</td>
-                  <td className="py-5 px-6 text-[#303237]">{payment.seller || "N/A"}</td>
-                  <td className="py-5 px-6 font-semibold text-[#171417]">{payment.totalAmount}</td>
+                  <td className="py-5 px-6">
+                    <div className="flex flex-col">
+                      <span className="font-medium text-[#171417]">
+                        {payment.userName}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {payment.role} ({payment.displayAs})
+                      </span>
+                      {payment.userEmail !== "—" && (
+                        <span className="text-xs text-gray-500">{payment.userEmail}</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-5 px-6 text-[#303237] line-clamp-2 max-w-[220px]">
+                    {payment.serviceTitle || "—"}
+                  </td>
+                  <td className="py-5 px-6 font-semibold text-[#171417]">
+                    {new Intl.NumberFormat("en-NG", {
+                      style: "currency",
+                      currency: "NGN",
+                    }).format(payment.amount)}
+                  </td>
                   <td className="py-5 px-6">
                     <span
                       className={cn(
@@ -115,7 +152,13 @@ export default function PaymentTable({ data }: PaymentTableProps) {
                     </span>
                   </td>
                   <td className="py-5 px-6 text-[#303237] whitespace-nowrap text-sm font-medium">
-                    {payment.date}
+                    {new Date(payment.createdAt).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </td>
                   <td className="py-5 px-6 text-center">
                     <button
@@ -123,15 +166,11 @@ export default function PaymentTable({ data }: PaymentTableProps) {
                         e.stopPropagation();
                         handleOpenDetails(payment);
                       }}
-                      disabled={!payment.buyerUserId && !payment.sellerUserId}
                       className="p-2 hover:bg-[#E8E3E3] rounded-lg transition group"
                     >
                       <HiOutlineEye
                         size={20}
-                        className={cn(
-                          "text-[#646264] group-hover:text-[#04171F]",
-                          (!payment.buyerUserId && !payment.sellerUserId) && "opacity-30"
-                        )}
+                        className="text-[#646264] group-hover:text-[#04171F]"
                       />
                     </button>
                   </td>
@@ -145,7 +184,9 @@ export default function PaymentTable({ data }: PaymentTableProps) {
       {/* MOBILE CARDS */}
       <div className="md:hidden space-y-4 px-4 pb-6">
         {data.map((payment) => {
-          const status = statusConfig[payment.status];
+          const status = statusConfig[payment.status] || { label: payment.status, color: "bg-gray-100 text-gray-800" };
+          const txType = typeConfig[payment.type] || { label: payment.type || "Other", color: "text-gray-600" };
+
           return (
             <div
               key={payment.id}
@@ -154,7 +195,7 @@ export default function PaymentTable({ data }: PaymentTableProps) {
             >
               <div className="flex justify-between items-start mb-3">
                 <div>
-                  <p className="text-xs text-[#646264] font-medium">Payment ID</p>
+                  <p className="text-xs text-[#646264] font-medium">Reference</p>
                   <p className="font-semibold text-[#171417] text-sm break-all">{payment.id}</p>
                 </div>
                 <span className={cn("px-3 py-1.5 rounded-full text-xs font-medium", status.color)}>
@@ -164,45 +205,54 @@ export default function PaymentTable({ data }: PaymentTableProps) {
 
               <div className="space-y-3">
                 <div>
-                  <p className="text-xs text-[#646264]">Service</p>
-                  <p className="font-medium text-[#303237] line-clamp-2">
-                    {payment.serviceTitle || "N/A"}
-                  </p>
+                  <p className="text-xs text-[#646264]">Type</p>
+                  <p className={cn("font-medium", txType.color)}>{txType.label}</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-[#646264]">Buyer</p>
-                    <p className="text-[#303237] text-sm">{payment.buyer || "N/A"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[#646264]">Seller</p>
-                    <p className="text-[#303237] text-sm">{payment.seller || "N/A"}</p>
-                  </div>
+                <div>
+                  <p className="text-xs text-[#646264]">User</p>
+                  <p className="font-medium text-[#171417]">{payment.userName}</p>
+                  <p className="text-xs text-gray-500">
+                    {payment.role} ({payment.displayAs})
+                  </p>
+                  {payment.userEmail !== "—" && (
+                    <p className="text-xs text-gray-500">{payment.userEmail}</p>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-xs text-[#646264]">Service</p>
+                  <p className="font-medium text-[#303237] line-clamp-2">
+                    {payment.serviceTitle || "—"}
+                  </p>
                 </div>
 
                 <div className="flex justify-between items-end pt-2 border-t border-[#E8E3E3]">
                   <div>
                     <p className="text-xs text-[#646264]">Amount</p>
-                    <p className="font-bold text-[#171417] text-lg">{payment.totalAmount}</p>
+                    <p className="font-bold text-[#171417] text-lg">
+                      {new Intl.NumberFormat("en-NG", {
+                        style: "currency",
+                        currency: "NGN",
+                      }).format(payment.amount)}
+                    </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-[#646264] whitespace-nowrap">{payment.date}</span>
+                    <span className="text-xs text-[#646264] whitespace-nowrap">
+                      {new Date(payment.createdAt).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenDetails(payment);
                       }}
-                      disabled={!payment.buyerUserId && !payment.sellerUserId}
                       className="p-2 hover:bg-[#F0F0F0] rounded-lg transition"
                     >
-                      <HiOutlineEye
-                        size={20}
-                        className={cn(
-                          "text-[#646264]",
-                          (!payment.buyerUserId && !payment.sellerUserId) && "opacity-30"
-                        )}
-                      />
+                      <HiOutlineEye size={20} className="text-[#646264]" />
                     </button>
                   </div>
                 </div>
