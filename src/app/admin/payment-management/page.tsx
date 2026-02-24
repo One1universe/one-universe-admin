@@ -1,5 +1,6 @@
 "use client";
 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEffect, useState } from "react";
 import { HiOutlineDownload } from "react-icons/hi";
 import PaymentTable, { Payment } from "./Details/PaymentTable";
@@ -30,6 +31,7 @@ const PaymentManagementPage = () => {
     setFilters,
   } = paymentManagementStore();
 
+  const [activeTab, setActiveTab] = useState("bookings");
   const [showFilter, setShowFilter] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -41,8 +43,17 @@ const PaymentManagementPage = () => {
 
   const filteredPayments = filterPayments(allPayments, filters, searchQuery);
 
+  // Filter based on active tab
+  const tabFilteredPayments = filteredPayments.filter((payment) => {
+    const isWalletType = ["DEPOSIT", "WITHDRAWAL"].includes(payment.type);
+    if (activeTab === "wallet") {
+      return isWalletType;
+    }
+    return !isWalletType;
+  });
+
   // No need for transformation anymore — allPayments is already normalized!
-  const transformedPayments: Payment[] = filteredPayments;
+  const transformedPayments: Payment[] = tabFilteredPayments;
 
   const hasPayments = allPayments.length > 0;
   const hasResults = transformedPayments.length > 0;
@@ -63,21 +74,27 @@ const PaymentManagementPage = () => {
   const handleExport = (format: "csv" | "pdf") => {
     const data = transformedPayments.map((p) => ({
       "Payment ID": p.id,
-      "Type": p.type,
-      "User": p.userName,
-      "Role": `${p.role} (${p.displayAs})`,
+      Type: p.type,
+      User: p.userName,
+      Role: `${p.role} (${p.displayAs})`,
       "Service Title": p.serviceTitle || "—",
-      "Amount": new Intl.NumberFormat("en-NG", {
+      Amount: new Intl.NumberFormat("en-NG", {
         style: "currency",
         currency: "NGN",
       }).format(p.amount),
-      "Status":
-        p.status === "PAID" ? "Paid" :
-        p.status === "PENDING" ? "Pending" :
-        p.status === "DISPUTED" ? "Disputed" :
-        p.status === "PENDING REFUND" ? "Pending Refund" :
-        p.status === "REFUNDED" ? "Refunded" : "Failed",
-      "Date": new Date(p.createdAt).toLocaleDateString("en-US", {
+      Status:
+        p.status === "PAID"
+          ? "Paid"
+          : p.status === "PENDING"
+            ? "Pending"
+            : p.status === "DISPUTED"
+              ? "Disputed"
+              : p.status === "PENDING REFUND"
+                ? "Pending Refund"
+                : p.status === "REFUNDED"
+                  ? "Refunded"
+                  : "Failed",
+      Date: new Date(p.createdAt).toLocaleDateString("en-US", {
         year: "numeric",
         month: "short",
         day: "numeric",
@@ -102,8 +119,19 @@ const PaymentManagementPage = () => {
       doc.setFontSize(20);
       doc.text("Payment Records", 14, 22);
       autoTable(doc, {
-        head: [["Payment ID", "Type", "User", "Role", "Service Title", "Amount", "Status", "Date"]],
-        body: data.map(row => Object.values(row)),
+        head: [
+          [
+            "Payment ID",
+            "Type",
+            "User",
+            "Role",
+            "Service Title",
+            "Amount",
+            "Status",
+            "Date",
+          ],
+        ],
+        body: data.map((row) => Object.values(row)),
         startY: 30,
         theme: "grid",
         headStyles: { fillColor: [4, 23, 31], textColor: [255, 255, 255] },
@@ -139,53 +167,80 @@ const PaymentManagementPage = () => {
 
         <section className="bg-white rounded-t-3xl border border-[#E8E3E3] overflow-hidden relative">
           <div className="bg-white px-6 py-5 border-b border-[#E8E3E3]">
-            <h2 className="font-dm-sans font-medium text-xl leading-[140%] text-[#171417]">
-              Payment Records
-            </h2>
-          </div>
-
-          {/* Search + Filter */}
-          <div className="px-6 py-5 flex flex-col sm:flex-row gap-4 items-center justify-between">
-            <div className="relative w-full sm:w-[532px]">
-              <input
-                type="text"
-                placeholder="Search by Payment ID, User Name, Email, Service Title..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-12 pl-12 pr-4 border border-[#B7B6B7] rounded-lg text-base font-inter placeholder-[#7B7B7B] focus:outline-none focus:border-[#04171F] transition"
-              />
-              <svg
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7B7B7B]"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
+            <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+              <Tabs
+                value={activeTab}
+                onValueChange={(val) => {
+                  setActiveTab(val);
+                  setCurrentPage(1);
+                }}
+                className="w-full lg:w-auto"
               >
-                <path
-                  d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
+                <TabsList className="bg-[#F2F2F2] p-1 rounded-lg h-auto w-full lg:w-auto grid grid-cols-2 lg:flex">
+                  <TabsTrigger
+                    value="bookings"
+                    className="px-6 py-2 rounded-md font-medium text-sm data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm text-[#6B6969]"
+                  >
+                    Bookings
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="wallet"
+                    className="px-6 py-2 rounded-md font-medium text-sm data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm text-[#6B6969]"
+                  >
+                    Wallet
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
 
-            <button
-              onClick={() => setShowFilter(!showFilter)}
-              className="flex items-center gap-2 h-12 px-6 border border-[#B5B1B1] rounded-lg text-[#171417] font-dm-sans font-medium text-base hover:bg-gray-50 transition whitespace-nowrap"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M6.22222 13.3333H9.77778V11.5556H6.22222V13.3333ZM0 2.66667V4.44444H16V2.66667H0ZM2.66667 8.88889H13.3333V7.11111H2.66667V8.88889Z" fill="currentColor" />
-              </svg>
-              Filter
-            </button>
+              {/* Search + Filter */}
+              <div className="flex flex-col sm:flex-row gap-4 items-center w-full lg:w-auto">
+                <div className="relative w-full sm:w-[400px]">
+                  <input
+                    type="text"
+                    placeholder="Search by Payment ID, User Name, Email, Service Title..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full h-12 pl-12 pr-4 border border-[#B7B6B7] rounded-lg text-base font-inter placeholder-[#7B7B7B] focus:outline-none focus:border-[#04171F] transition"
+                  />
+                  <svg
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7B7B7B]"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <path
+                      d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+
+                <button
+                  onClick={() => setShowFilter(!showFilter)}
+                  className="flex items-center gap-2 h-12 px-6 border border-[#B5B1B1] rounded-lg text-[#171417] font-dm-sans font-medium text-base hover:bg-gray-50 transition whitespace-nowrap w-full sm:w-auto justify-center"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path
+                      d="M6.22222 13.3333H9.77778V11.5556H6.22222V13.3333ZM0 2.66667V4.44444H16V2.66667H0ZM2.66667 8.88889H13.3333V7.11111H2.66667V8.88889Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  Filter
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Error */}
           {allPaymentsError && (
             <div className="mx-6 mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-600 text-sm font-medium">{allPaymentsError}</p>
+              <p className="text-red-600 text-sm font-medium">
+                {allPaymentsError}
+              </p>
             </div>
           )}
 
@@ -194,12 +249,17 @@ const PaymentManagementPage = () => {
             {allPaymentsLoading ? (
               <div className="p-8 space-y-3">
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+                  <div
+                    key={i}
+                    className="h-16 bg-gray-100 rounded-lg animate-pulse"
+                  />
                 ))}
               </div>
             ) : allPaymentsError ? (
               <div className="flex flex-col items-center justify-center py-16">
-                <h3 className="text-lg font-medium text-gray-900">Failed to load payments</h3>
+                <h3 className="text-lg font-medium text-gray-900">
+                  Failed to load payments
+                </h3>
                 <button
                   onClick={() => fetchAllPayments(currentPage, itemsPerPage)}
                   className="mt-4 px-6 py-3 bg-[#04171F] text-white rounded-lg"
@@ -212,7 +272,10 @@ const PaymentManagementPage = () => {
             ) : !hasResults ? (
               <NoPaymentManagement />
             ) : (
-              <PaymentTable data={transformedPayments} />
+              <PaymentTable
+                data={transformedPayments}
+                hideServiceColumn={activeTab === "wallet"}
+              />
             )}
           </div>
 
