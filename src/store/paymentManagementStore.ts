@@ -92,12 +92,23 @@ export interface DetailedTransaction {
   bookingLocation: string;
   bookingDate: string;
   buyerName: string;
+  buyerEmail: string | null;
+  buyerPhone: string | null;
   buyerRole: RoleType;
   sellerName: string;
+  sellerEmail: string | null;
+  sellerPhone: string | null;
   sellerRole: RoleType;
   sellerBusinessName: string;
   jobStatus: JobStatus;
   jobDetails: JobDetails;
+  // Additional fields from API response for logic
+  role: string;
+  type: string;
+  displayAs: string;
+  userName: string;
+  userEmail: string;
+  userId: string | null;
 }
 
 interface BaseTransactionsResponse {
@@ -145,7 +156,9 @@ function isHttpError(response: unknown): response is HttpError {
 }
 
 // === Normalization Helper ===
-const normalizeTransaction = (tx: LegacyBaseTransaction | UnifiedBaseTransaction): Payment => {
+const normalizeTransaction = (
+  tx: LegacyBaseTransaction | UnifiedBaseTransaction,
+): Payment => {
   // New unified format
   if ("userName" in tx && "displayAs" in tx) {
     return {
@@ -251,7 +264,10 @@ export const paymentManagementStore = create<PaymentManagementState>((set) => ({
     set({ allPaymentsLoading: true, allPaymentsError: null });
 
     try {
-      const response: unknown = await paymentService.getAllPayments({ page, limit });
+      const response: unknown = await paymentService.getAllPayments({
+        page,
+        limit,
+      });
 
       if (isHttpError(response)) {
         throw new Error(response.message);
@@ -287,7 +303,8 @@ export const paymentManagementStore = create<PaymentManagementState>((set) => ({
     });
 
     try {
-      const response: unknown = await paymentService.getUserTransactionHistory(userId);
+      const response: unknown =
+        await paymentService.getUserTransactionHistory(userId);
 
       if (isHttpError(response)) {
         throw new Error(response.message);

@@ -63,14 +63,49 @@ const statusConfig = {
   },
 };
 
-const typeConfig: Record<string, { label: string; color: string }> = {
-  DEPOSIT: { label: "Deposit", color: "text-green-600" },
-  WITHDRAWAL: { label: "Withdrawal", color: "text-red-600" },
-  PAYMENT: { label: "Payment", color: "text-blue-600" },
-  REFERRAL: { label: "Referral Reward", color: "text-purple-600" },
-  SUBSCRIPTION: { label: "Subscription", color: "text-indigo-600" },
-  REFUND: { label: "Refund", color: "text-orange-600" },
-  // Add more types as needed
+// Add more types as needed
+const getPaymentTypeLabel = (payment: Payment) => {
+  const { type, role } = payment;
+
+  if (type === "WITHDRAWAL") return "Withdrawal";
+
+  if (type === "CREDIT") {
+    if (role.includes("Deposit") || role.includes("Wallet Owner (Deposit)")) {
+      return "Wallet Credit";
+    }
+    return "Seller Credit";
+  }
+
+  if (type === "DEBIT") {
+    if (role.includes("Wallet Owner")) {
+      return "Platform Charge";
+    }
+    return "Debit";
+  }
+
+  return type; // Fallback
+};
+
+const getPaymentTypeColor = (label: string) => {
+  switch (label) {
+    case "Wallet Credit":
+    case "Deposit":
+      return "text-green-600";
+    case "Withdrawal":
+      return "text-red-600";
+    case "Seller Credit":
+      return "text-blue-600";
+    case "Platform Charge":
+      return "text-orange-600";
+    case "Debit":
+      return "text-gray-900";
+    case "PAYMENT":
+      return "text-blue-600";
+    case "REFERRAL":
+      return "text-purple-600";
+    default:
+      return "text-gray-600";
+  }
 };
 
 export default function PaymentTable({
@@ -142,10 +177,8 @@ export default function PaymentTable({
                 label: payment.status,
                 color: "bg-gray-100 text-gray-800",
               };
-              const txType = typeConfig[payment.type] || {
-                label: payment.type || "Other",
-                color: "text-gray-600",
-              };
+              const txLabel = getPaymentTypeLabel(payment);
+              const txColor = getPaymentTypeColor(txLabel);
 
               return (
                 <tr
@@ -156,8 +189,8 @@ export default function PaymentTable({
                     {payment.id}
                   </td>
                   <td className="py-5 px-6">
-                    <span className={cn("font-medium", txType.color)}>
-                      {txType.label}
+                    <span className={cn("font-medium", txColor)}>
+                      {txLabel}
                     </span>
                   </td>
                   <td className="py-5 px-6">
@@ -234,10 +267,8 @@ export default function PaymentTable({
             label: payment.status,
             color: "bg-gray-100 text-gray-800",
           };
-          const txType = typeConfig[payment.type] || {
-            label: payment.type || "Other",
-            color: "text-gray-600",
-          };
+          const txLabel = getPaymentTypeLabel(payment);
+          const txColor = getPaymentTypeColor(txLabel);
 
           return (
             <div
@@ -267,9 +298,7 @@ export default function PaymentTable({
               <div className="space-y-3">
                 <div>
                   <p className="text-xs text-[#646264]">Type</p>
-                  <p className={cn("font-medium", txType.color)}>
-                    {txType.label}
-                  </p>
+                  <p className={cn("font-medium", txColor)}>{txLabel}</p>
                 </div>
 
                 <div>

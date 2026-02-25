@@ -45,7 +45,11 @@ const PaymentManagementPage = () => {
 
   // Filter based on active tab
   const tabFilteredPayments = filteredPayments.filter((payment) => {
-    const isWalletType = ["DEPOSIT", "WITHDRAWAL"].includes(payment.type);
+    const isWalletType =
+      payment.type === "WITHDRAWAL" ||
+      payment.type === "DEPOSIT" ||
+      (payment.type === "CREDIT" && payment.role.includes("Deposit"));
+
     if (activeTab === "wallet") {
       return isWalletType;
     }
