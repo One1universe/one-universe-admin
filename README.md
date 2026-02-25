@@ -17,7 +17,7 @@ The app communicates exclusively with the One Universe API backend; it does not 
 ## 2. Architecture and Codebase Structure
 
 ### 2.1 Tech Stack
-
+ 
 - Framework: Next.js 16 (App Router)
 - Language: TypeScript
 - UI and Styling:
