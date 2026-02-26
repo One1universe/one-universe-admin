@@ -149,7 +149,7 @@ const PaymentManagementPage = () => {
 
   return (
     <>
-      <main className="max-w-[1120px] mx-auto px-10 pt-6 pb-8">
+      <main className=" mx-auto  pt-6 pb-8">
         <header className="flex justify-between items-start mb-8">
           <div className="flex flex-col gap-1">
             <h1 className="font-dm-sans font-bold text-[24px] leading-[120%] text-[#171417]">

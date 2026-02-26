@@ -185,8 +185,15 @@ export default function PaymentTable({
                   key={payment.id}
                   className="border-b border-[#E8E3E3] hover:bg-gray-50 transition-colors"
                 >
-                  <td className="py-5 px-6 text-sm font-medium text-[#171417] break-all">
-                    {payment.id}
+                  <td className="py-5 px-6 text-sm font-medium text-[#171417]">
+                    <span
+                      title={payment.id}
+                      className="cursor-help border-b border-dotted border-gray-400"
+                    >
+                      {payment.id.length > 10
+                        ? `${payment.id.substring(0, 10)}...`
+                        : payment.id}
+                    </span>
                   </td>
                   <td className="py-5 px-6">
                     <span className={cn("font-medium", txColor)}>

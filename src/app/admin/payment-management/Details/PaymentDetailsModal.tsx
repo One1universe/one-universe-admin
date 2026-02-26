@@ -151,6 +151,29 @@ export default function PaymentDetailsModal({
   const isWalletCredit = payment.type === "CREDIT" && !isBookingTransaction;
   const isWithdrawal = payment.type === "WITHDRAWAL";
 
+  const renderHeaderTitle = () => {
+    const reference = payment.reference;
+    const renderRef = (label: string) => (
+      <span className="flex items-center gap-1">
+        {label} –{" "}
+        <span
+          title={reference}
+          className="cursor-help border-b border-dotted border-gray-400"
+        >
+          {reference.length > 10
+            ? `${reference.substring(0, 10)}...`
+            : reference}
+        </span>
+      </span>
+    );
+
+    if (isSellerCredit) return renderRef("Seller Credit");
+    if (isPlatformCharge) return renderRef("Platform Charge");
+    if (isWalletCredit) return renderRef("Wallet Credit");
+    if (isWithdrawal) return renderRef("Withdrawal");
+    return "Payment Details";
+  };
+
   return (
     <>
       <div
@@ -166,15 +189,7 @@ export default function PaymentDetailsModal({
           {/* Header */}
           <div className="bg-[#E8FBF7] border-b border-[#E8E3E3] px-6 pt-8 pb-4 flex justify-between items-center">
             <h2 className="font-dm-sans font-bold text-xl leading-[140%] text-[#171417]">
-              {isSellerCredit
-                ? `Seller Credit – ${payment.reference}`
-                : isPlatformCharge
-                  ? `Platform Charge – ${payment.reference}`
-                  : isWalletCredit
-                    ? `Wallet Credit – ${payment.reference}`
-                    : isWithdrawal
-                      ? `Withdrawal – ${payment.reference}`
-                      : "Payment Details"}
+              {renderHeaderTitle()}
             </h2>
             <button
               onClick={onClose}
